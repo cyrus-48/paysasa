@@ -1,0 +1,379 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Payment\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Actions/InitiatePayment.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Payment\:\:\$currency\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Actions/ProcessRefund.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Refund\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Actions/ProcessRefund.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Payment\:\:\$reference\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Actions/VerifyPayment.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Payment\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Actions/VerifyPayment.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Drivers/Banking/VirtualAccountDriver.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>phone" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Drivers/Cards/FlutterwaveDriver.php
+
+		-
+			message: '#^Variable \$txRef on left side of \?\? always exists and is always null\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: src/Drivers/Cards/FlutterwaveDriver.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>email" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Drivers/Cards/PaystackDriver.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Drivers/Cards/PaystackDriver.php
+
+		-
+			message: '#^Variable \$reference on left side of \?\? always exists and is always null\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: src/Drivers/Cards/PaystackDriver.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>phone" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Drivers/Cards/PesapalDriver.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Payment\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Events/PaymentFailed.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>message" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Events/PaymentFailed.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Payment\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Events/PaymentSuccessful.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Webhook\:\:\$payload\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/WebhookController.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Webhook\:\:\$provider\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/WebhookController.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\PaymentResource\:\:\$category\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/PaymentResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\PaymentResource\:\:\$completed_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/PaymentResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\PaymentResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/PaymentResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\PaymentResource\:\:\$currency\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/PaymentResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\PaymentResource\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/PaymentResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\PaymentResource\:\:\$failure_reason\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/PaymentResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\PaymentResource\:\:\$initiated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/PaymentResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\PaymentResource\:\:\$metadata\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/PaymentResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\PaymentResource\:\:\$provider\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/PaymentResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\PaymentResource\:\:\$provider_reference\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/PaymentResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\PaymentResource\:\:\$receipt_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/PaymentResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\PaymentResource\:\:\$reference\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/PaymentResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\PaymentResource\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Resources/PaymentResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\PaymentResource\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/PaymentResource.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/RefundResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\RefundResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/RefundResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\RefundResource\:\:\$currency\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/RefundResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\RefundResource\:\:\$provider_reference\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/RefundResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\RefundResource\:\:\$reason\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/RefundResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\RefundResource\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/RefundResource.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Http\\Resources\\RefundResource\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Resources/RefundResource.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Jobs/DispatchWebhookJob.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Webhook\:\:\$payload\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Jobs/DispatchWebhookJob.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Webhook\:\:\$payment_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Jobs/DispatchWebhookJob.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Webhook\:\:\$provider\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Jobs/DispatchWebhookJob.php
+
+		-
+			message: '#^Parameter \#1 \$payment of method Paysasa\\Payments\\Contracts\\PaymentRepository\:\:updateFromResponse\(\) expects Paysasa\\Payments\\Models\\Payment, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Jobs/DispatchWebhookJob.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Payment\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Jobs/VerifyPaymentStatusJob.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Payment\:\:\$reference\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Listeners/PaymentEventSubscriber.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Webhook\:\:\$provider\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Listeners/PaymentEventSubscriber.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>message" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Listeners/PaymentEventSubscriber.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\AuditLog\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/AuditLog.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Payment\:\:\$amount_minor\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Payment.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Refund\:\:\$amount_minor\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Refund.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Transaction\:\:\$amount_minor\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Transaction.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Illuminate\\Http\\Request\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: src/Support/AuditLogger.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\ProviderAccount\:\:\$environment\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Support/CredentialVault.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Payment\:\:\$completed_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Support/EloquentPaymentRepository.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Payment\:\:\$currency\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Support/EloquentPaymentRepository.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Payment\:\:\$failure_reason\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Support/EloquentPaymentRepository.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Payment\:\:\$provider_reference\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Support/EloquentPaymentRepository.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Payment\:\:\$receipt_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Support/EloquentPaymentRepository.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Illuminate\\Http\\Request\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: src/Support/EloquentPaymentRepository.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>phone" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Support/EloquentPaymentRepository.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Payment\:\:\$provider_reference\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Support/FluentPaymentBuilder.php
+
+		-
+			message: '#^Access to an undefined property Paysasa\\Payments\\Models\\Payment\:\:\$provider\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Support/PaymentLogger.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Illuminate\\Http\\Request\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Webhooks/Verifiers/MpesaSignatureVerifier.php

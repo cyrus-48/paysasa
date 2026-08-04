@@ -1,0 +1,80 @@
+{
+    "name": "paysasa/payments",
+    "description": "A unified, driver-based payment gateway abstraction for Laravel, purpose-built for the Kenyan market (M-Pesa, Airtel Money, Stripe, Pesapal, Flutterwave, Paystack, PesaLink, EFT/RTGS and more) behind one consistent API.",
+    "keywords": [
+        "laravel", "payments", "mpesa", "daraja", "airtel-money", "kenya", "fintech",
+        "stripe", "pesapal", "flutterwave", "paystack", "pesalink", "mobile-money"
+    ],
+    "type": "library",
+    "license": "MIT",
+    "homepage": "https://github.com/cyrus-478/paysasa",
+    "support": {
+        "issues": "https://github.com/cyrus-478/paysasa/issues",
+        "source": "https://github.com/cyrus-478/paysasa"
+    },
+    "authors": [
+        {
+            "name": "Cyrus Mwendwa",
+            "email": "cyrusmwendwa370@gmail.com",
+            "role": "Maintainer"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^11.0|^12.0",
+        "illuminate/database": "^11.0|^12.0",
+        "illuminate/queue": "^11.0|^12.0",
+        "illuminate/http": "^11.0|^12.0",
+        "guzzlehttp/guzzle": "^7.8",
+        "ramsey/uuid": "^4.7",
+        "nesbot/carbon": "^2.72|^3.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0",
+        "pestphp/pest": "^2.34|^3.0",
+        "pestphp/pest-plugin-laravel": "^2.4|^3.0",
+        "phpunit/phpunit": "^10.5|^11.0",
+        "mockery/mockery": "^1.6",
+        "friendsofphp/php-cs-fixer": "^3.51",
+        "phpstan/phpstan": "^1.10|^2.0",
+        "larastan/larastan": "^2.9|^3.0"
+    },
+    "suggest": {
+        "stripe/stripe-php": "Required if you use the Stripe driver's SDK-backed features (paysasa also ships a raw-HTTP fallback client).",
+        "pusher/pusher-php-server": "Required to broadcast payment status updates in real time via PaymentStatusUpdated."
+    },
+    "autoload": {
+        "psr-4": {
+            "Paysasa\\Payments\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Paysasa\\Payments\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Paysasa\\Payments\\PaysasaServiceProvider"
+            ],
+            "aliases": {
+                "Payment": "Paysasa\\Payments\\Facades\\Payment"
+            }
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "test-coverage": "pest --coverage",
+        "analyse": "phpstan analyse",
+        "format": "php-cs-fixer fix"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
