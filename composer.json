@@ -1,5 +1,5 @@
 {
-    "name": "paysasa/payments",
+    "name": "cyrus-48/paysasa",
     "description": "A unified, driver-based payment gateway abstraction for Laravel, purpose-built for the Kenyan market (M-Pesa, Airtel Money, Stripe, Pesapal, Flutterwave, Paystack, PesaLink, EFT/RTGS and more) behind one consistent API.",
     "keywords": [
         "laravel", "payments", "mpesa", "daraja", "airtel-money", "kenya", "fintech",
