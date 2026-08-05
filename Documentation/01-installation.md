@@ -6,7 +6,7 @@
 composer require paysasa/payments
 ```
 
-Laravel package auto-discovery registers `PaysasaServiceProvider` and the `Payment` facade automatically (see `composer.json`'s `extra.laravel` block) — no manual provider registration needed on Laravel 11/12.
+Laravel package auto-discovery registers `PaysasaServiceProvider` and the `Payment` facade automatically (see `composer.json`'s `extra.laravel` block) — no manual provider registration needed on Laravel 11, 12, or 13.
 
 ## 2. Install
 

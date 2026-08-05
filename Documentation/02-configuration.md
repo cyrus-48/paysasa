@@ -2,6 +2,12 @@
 
 All configuration lives in `config/paysasa.php` after publishing. Every value is `env()`-backed so `.env` is the normal place to set it per-environment.
 
+## Laravel 13
+
+`composer.json` constrains `illuminate/support`, `illuminate/database`, `illuminate/queue`, and `illuminate/http` to `^11.0|^12.0|^13.12` — note the `13.12` floor rather than a plain `^13.0`. Every `laravel/framework` release between `13.0.0` and `13.11.x` is affected by at least one of three published security advisories (a signed-URL path-confusion issue fixed in 13.12.0, and a CRLF-injection issue in the email validation rule fixed in 13.10.0 — see `composer.json`'s `config.audit.ignore` block for the advisory IDs and reasoning). Requiring `^13.12` means Composer will never resolve an affected version for the 13.x line; there's nothing to configure here, just don't loosen that floor when upgrading `composer.json` yourself.
+
+If your own project's `composer audit`/CI still flags those three advisory IDs, that's because `audit.ignore` in composer.json only suppresses them for *this package's* resolution — copy the same `config.audit.ignore` block (or just make sure your own `laravel/framework` requirement is `^13.12` too) so your project-level audit isn't flagging a version range you can't actually land on anyway.
+
 ## Global settings
 
 | Key | Env var | Default | Purpose |

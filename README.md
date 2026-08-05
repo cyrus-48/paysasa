@@ -1,6 +1,6 @@
 # Paysasa
 
-**A unified, driver-based payment gateway abstraction for Laravel 11/12, purpose-built for the Kenyan market.**
+**A unified, driver-based payment gateway abstraction for Laravel 11, 12, and 13, purpose-built for the Kenyan market.**
 
 Paysasa gives a Laravel application one consistent API — `Payment::driver('mpesa')->amount(2500)->phone('0712345678')->charge()` — for M-Pesa, Airtel Money, T-Kash, Stripe, Pesapal, Flutterwave, Paystack, Google Pay, Apple Pay, and Kenyan bank rails (PesaLink, EFT, RTGS, virtual accounts). Business logic never talks to a provider SDK directly; it talks to Paysasa, and Paysasa talks to whichever driver is configured.
 
@@ -15,7 +15,7 @@ Every Kenyan Laravel project ends up writing the same brittle integration code a
 ## Requirements
 
 - PHP 8.2+
-- Laravel 11.x or 12.x
+- Laravel 11.x, 12.x, or 13.x (13.x requires laravel/framework ^13.12 — see the note in [`02-configuration.md`](Documentation/02-configuration.md#laravel-13))
 - A queue worker for asynchronous webhook/verification processing (recommended: Redis + `php artisan queue:work`)
 
 ## Installation
