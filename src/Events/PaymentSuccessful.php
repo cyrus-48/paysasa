@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Paysasa\Payments\Events;
 
-use Illuminate\Broadcasting\Channel;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -32,7 +32,7 @@ class PaymentSuccessful implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
-        return [new Channel("paysasa.payments.{$this->payment->uuid}")];
+        return [new PrivateChannel("paysasa.payments.{$this->payment->uuid}")];
     }
 
     public function broadcastAs(): string
