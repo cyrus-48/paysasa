@@ -93,7 +93,13 @@ class FlutterwaveDriver extends AbstractDriver implements PayoutCapable, Refunda
         $status = $result['data']['status'] ?? null;
 
         return in_array($status, ['NEW', 'PENDING'], true)
-            ? PaymentResponse::makePending($this->provider(), null, (string) ($result['data']['id'] ?? null), 'Transfer queued', $result)
+            ? PaymentResponse::makePending(
+                provider: $this->provider(),
+                transactionId: null,
+                providerReference: (string) ($result['data']['id'] ?? null),
+                message: 'Transfer queued',
+                rawResponse: $result,
+            )
             : PaymentResponse::makeFailed($this->provider(), message: $result['message'] ?? 'Transfer failed', rawResponse: $result);
     }
 
