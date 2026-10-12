@@ -1,11 +1,15 @@
 # Roadmap
 
-## Shipped in this baseline (1.0)
+## Shipped in this baseline (pre-1.0)
 
-- Unified driver architecture across mobile money, cards, wallets, and banking abstractions.
-- 13 drivers: M-Pesa, Airtel Money, T-Kash, Stripe, Pesapal, Flutterwave, Paystack, Google Pay, Apple Pay, PesaLink, EFT, RTGS, Virtual Accounts.
-- Full persistence layer (9 tables), event-driven lifecycle, queue-based webhook/verification processing.
-- `Payment::fake()` testing support, `paysasa:status`/`paysasa:install`/`paysasa:mpesa:register-urls` Artisan commands.
+- Unified driver architecture across mobile money, cards, and banking abstractions.
+- 6 production/beta drivers (M-Pesa, Airtel Money, Stripe, Pesapal, Flutterwave, Paystack) + PesaLink (experimental).
+- Strict state machine (`TransitionPayment`) guarding all status updates with row locks and firing terminal lifecycle events (`PaymentSuccessful`, `PaymentFailed`, `PaymentCancelled`, `PaymentExpired`).
+- Value objects for currency safety (`Money` value object preventing float truncation) and phone formatting (`KenyanMsisdn`).
+- Fail-closed webhook verification, size limits, raw-body deduplication, and amount mismatch anomaly detection.
+- Self-healing reconciliation sweep (`paysasa:reconcile` and single-shot `VerifyPaymentStatusJob`).
+- Full persistence layer, event-driven lifecycle, queue-based webhook/verification processing.
+- `Payment::fake()` testing support, `paysasa:reconcile`, `paysasa:webhooks:unmatched`, `paysasa:status`, and `paysasa:mpesa:register-urls` Artisan commands.
 - Multi-merchant credential resolution via `provider_accounts`.
 
 ## Near-term
@@ -20,7 +24,7 @@
 - **Additional bank integrations** shipped as concrete `AbstractBankingDriver` subclasses once a specific bank partnership/public API justifies maintaining it in core, rather than leaving every bank as a "bring your own subclass" exercise.
 - **A hosted status dashboard** (Filament/Nova-agnostic, or a standalone package) for browsing `payments`/`webhooks`/`payment_logs` without writing raw queries — likely a separate `paysasa/dashboard` package rather than bloating the core payment library with an admin UI dependency.
 - **Async/reactive payment status via server-sent events** as an alternative to the existing Laravel Echo broadcast channel, for apps that don't already run a WebSocket layer.
-- **T-Kash driver hardening** once Telkom's integration pack details stabilize publicly (currently best-effort — see the caveat in `src/Drivers/MobileMoney/TKashDriver.php`).
+- **T-Kash driver support** if Telkom Kenya releases an open, standardized public API.
 
 ## Explicitly out of scope
 

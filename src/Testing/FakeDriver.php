@@ -41,7 +41,7 @@ class FakeDriver extends AbstractDriver implements Authorizable, BalanceInquirab
 
     public function charge(ChargeRequest $request): PaymentResponse
     {
-        return PaymentResponse::makeSuccessful($this->provider(), transactionId: null, providerReference: 'FAKE-REF', amount: $request->amount, currency: $request->currency->value);
+        return PaymentResponse::makeSuccessful($this->provider(), transactionId: null, providerReference: 'FAKE-REF', amount: $request->amountMajor(), currency: $request->currency->value);
     }
 
     public function authorize(ChargeRequest $request): PaymentResponse

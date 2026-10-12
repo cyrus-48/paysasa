@@ -15,4 +15,11 @@ class InvalidConfigurationException extends PaymentException
             'missing_keys' => $keys,
         ]);
     }
+
+    public static function invalidValue(string $driver, string $message): self
+    {
+        return new self("Driver [{$driver}] configuration error: {$message}.", [
+            'driver' => $driver,
+        ]);
+    }
 }

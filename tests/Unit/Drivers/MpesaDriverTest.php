@@ -108,3 +108,90 @@ it('translates a customer-cancelled STK callback into a cancelled PaymentRespons
 
     expect($response->status())->toBe(PaymentStatus::Cancelled);
 });
+
+it('translates customer timeout callback into an Expired response with failure_code', function () {
+    $driver = app(PaymentManager::class)->driverInstance('mpesa');
+
+    $callbackBody = ['Body' => ['stkCallback' => [
+        'CheckoutRequestID' => 'ws_CO_timeout',
+        'ResultCode' => 1037,
+        'ResultDesc' => 'DS timeout user cannot be reached',
+    ]]];
+
+    $response = $driver->handleCallback(new WebhookPayload(PaymentProvider::Mpesa, [], json_encode($callbackBody), $callbackBody));
+
+    expect($response->status())->toBe(PaymentStatus::Expired)
+        ->and($response->metadata['failure_code'])->toBe('timeout_expired');
+});
+
+it('returns Pending when verify catches a transaction being processed error', function () {
+    Http::fake([
+        'sandbox.safaricom.co.ke/oauth/v1/generate*' => Http::response(['access_token' => 'fake-token']),
+        'sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query' => Http::response([
+            'ResponseCode' => '1',
+            'ResponseDescription' => 'The transaction is being processed',
+        ], 500),
+    ]);
+
+    $driver = app(PaymentManager::class)->driverInstance('mpesa');
+    $response = $driver->verify('ws_CO_query_processing');
+
+    expect($response->pending())->toBeTrue()
+        ->and($response->message())->toContain('Transaction is being processed');
+});
+
+it('maps verify result codes correctly for cancelled and expired', function () {
+    Http::fake([
+        'sandbox.safaricom.co.ke/oauth/v1/generate*' => Http::response(['access_token' => 'fake-token']),
+        'sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query' => Http::sequence()
+            ->push(['ResultCode' => '1032', 'ResultDesc' => 'Request cancelled by user'])
+            ->push(['ResultCode' => '1037', 'ResultDesc' => 'DS timeout']),
+    ]);
+
+    $driver = app(PaymentManager::class)->driverInstance('mpesa');
+
+    $cancelled = $driver->verify('ws_CO_cancelled');
+    expect($cancelled->status())->toBe(PaymentStatus::Cancelled);
+
+    $expired = $driver->verify('ws_CO_expired');
+    expect($expired->status())->toBe(PaymentStatus::Expired);
+});
+
+it('throws InvalidArgumentException when reverse is called without positive amount', function () {
+    config()->set('paysasa.drivers.mpesa.initiator_name', 'test_initiator');
+    config()->set('paysasa.drivers.mpesa.security_credential', 'test_cred');
+
+    $driver = app(PaymentManager::class)->driverInstance('mpesa');
+
+    $driver->reverse('ws_CO_ref', 0.0);
+})->throws(\InvalidArgumentException::class);
+
+it('throws InvalidAmountException when reverse is called with fractional amount', function () {
+    config()->set('paysasa.drivers.mpesa.initiator_name', 'test_initiator');
+    config()->set('paysasa.drivers.mpesa.security_credential', 'test_cred');
+
+    $driver = app(PaymentManager::class)->driverInstance('mpesa');
+
+    $driver->reverse('ws_CO_ref', 100.75);
+})->throws(\Paysasa\Payments\Exceptions\InvalidAmountException::class);
+
+it('throws UnsupportedOperationException when balance is called synchronously', function () {
+    $driver = app(PaymentManager::class)->driverInstance('mpesa');
+
+    $driver->balance();
+})->throws(\Paysasa\Payments\Exceptions\UnsupportedOperationException::class);
+
+it('rejects callback URL override when host is not in allowed_callback_hosts', function () {
+    config()->set('paysasa.drivers.mpesa.allowed_callback_hosts', ['example.com', 'payments.mysite.com']);
+
+    $driver = app(PaymentManager::class)->driverInstance('mpesa');
+
+    $driver->charge(new ChargeRequest(
+        provider: PaymentProvider::Mpesa,
+        amount: 100,
+        currency: Currency::KES,
+        phone: '0712345678',
+        callbackUrl: 'https://evil-attacker.com/webhook',
+    ));
+})->throws(\Paysasa\Payments\Exceptions\InvalidConfigurationException::class);
+

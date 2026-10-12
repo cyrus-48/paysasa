@@ -6,6 +6,7 @@ namespace Paysasa\Payments\DTOs;
 
 use Paysasa\Payments\Enums\Currency;
 use Paysasa\Payments\Enums\PaymentProvider;
+use Paysasa\Payments\ValueObjects\Money;
 use Ramsey\Uuid\Uuid;
 
 /**
@@ -16,9 +17,11 @@ use Ramsey\Uuid\Uuid;
  */
 final class ChargeRequest
 {
+    public readonly Money $amount;
+
     public function __construct(
         public readonly PaymentProvider $provider,
-        public readonly float $amount,
+        Money|float|int|string $amount,
         public readonly Currency $currency,
         public readonly ?string $phone = null,
         public readonly ?string $cardToken = null,
@@ -31,6 +34,12 @@ final class ChargeRequest
         public readonly ?string $paymentMethodId = null, // saved payment method
         public readonly array $splits = [], // marketplace / split-payment recipients
     ) {
+        $this->amount = $amount instanceof Money ? $amount : Money::of($amount, $currency);
+    }
+
+    public function amountMajor(): float
+    {
+        return $this->amount->amountMajor();
     }
 
     public function idempotencyKeyOrGenerated(): string
@@ -60,8 +69,8 @@ final class ChargeRequest
     /** Fingerprint used to detect idempotency-key reuse against a different payload. */
     public function fingerprint(): string
     {
-        return hash('sha256', json_encode([
-            $this->provider->value, $this->amount, $this->currency->value,
+        return hash('sha256', (string) json_encode([
+            $this->provider->value, $this->amount->minor, $this->currency->value,
             $this->phone, $this->reference, $this->paymentMethodId,
         ]));
     }
@@ -70,7 +79,8 @@ final class ChargeRequest
     {
         return [
             'provider' => $this->provider->value,
-            'amount' => $this->amount,
+            'amount' => $this->amount->amountMajor(),
+            'amount_minor' => $this->amount->minor,
             'currency' => $this->currency->value,
             'phone' => $this->phone,
             'customer' => $this->customer?->toArray(),

@@ -46,7 +46,9 @@ it('persists a payment, an attempt and a transaction, and fires the lifecycle ev
     Event::assertNotDispatched(\Paysasa\Payments\Events\PaymentFailed::class);
 });
 
-it('marks the payment successful and updates the receipt number when the STK callback lands', function () {
+it('marks the payment successful, updates the receipt number, and fires PaymentSuccessful when STK callback is processed', function () {
+    Event::fake([\Paysasa\Payments\Events\PaymentSuccessful::class]);
+
     Http::fake([
         'sandbox.safaricom.co.ke/oauth/v1/generate*' => Http::response(['access_token' => 'fake-token']),
         'sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest' => Http::response(['CheckoutRequestID' => 'ws_CO_2', 'ResponseCode' => '0']),
@@ -56,7 +58,6 @@ it('marks the payment successful and updates the receipt number when the STK cal
 
     $payment = PaymentModel::query()->where('reference', 'INV2002')->firstOrFail();
 
-    $driver = app(\Paysasa\Payments\Managers\PaymentManager::class)->driverInstance('mpesa');
     $callback = ['Body' => ['stkCallback' => [
         'CheckoutRequestID' => 'ws_CO_2',
         'ResultCode' => 0,
@@ -66,15 +67,26 @@ it('marks the payment successful and updates the receipt number when the STK cal
         ]],
     ]]];
 
-    $response = $driver->handleCallback(new \Paysasa\Payments\DTOs\WebhookPayload(
-        \Paysasa\Payments\Enums\PaymentProvider::Mpesa, [], json_encode($callback), $callback,
-    ));
+    $rawBody = (string) json_encode($callback);
+    $webhook = \Paysasa\Payments\Models\Webhook::create([
+        'provider' => 'mpesa',
+        'status' => \Paysasa\Payments\Enums\WebhookStatus::Queued,
+        'payload' => $callback,
+    ]);
 
-    app(\Paysasa\Payments\Contracts\PaymentRepository::class)->updateFromResponse($payment, $response);
+    (new \Paysasa\Payments\Jobs\DispatchWebhookJob($webhook, [], $rawBody))->handle(
+        app(\Paysasa\Payments\Managers\PaymentManager::class),
+        app(\Paysasa\Payments\Contracts\PaymentRepository::class),
+        app(\Paysasa\Payments\Actions\TransitionPayment::class)
+    );
 
     $payment->refresh();
 
     expect($payment->status->value)->toBe('successful')
         ->and($payment->receipt_number)->toBe('ABC123XYZ')
         ->and($payment->completed_at)->not->toBeNull();
+
+    Event::assertDispatched(\Paysasa\Payments\Events\PaymentSuccessful::class, function ($event) use ($payment) {
+        return $event->payment->id === $payment->id;
+    });
 });

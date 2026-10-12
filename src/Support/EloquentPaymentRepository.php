@@ -31,7 +31,7 @@ class EloquentPaymentRepository implements PaymentRepository
             'type' => TransactionType::Charge,
             'status' => PaymentStatus::Pending,
             'currency' => $request->currency->value,
-            'amount' => $request->amount,
+            'amount_minor' => $request->amount->minor,
             'reference' => $request->reference ?? Uuid::uuid4()->toString(),
             'idempotency_key' => $request->idempotencyKey,
             'customer_id' => $request->customer?->id,

@@ -49,7 +49,7 @@ class PesapalDriver extends AbstractDriver implements Refundable, WebhookHandler
         $result = $this->client()->submitOrderRequest([
             'id' => $request->reference ?? Uuid::uuid4()->toString(),
             'currency' => $request->currency->value,
-            'amount' => $request->amount,
+            'amount' => $request->amountMajor(),
             'description' => $request->description ?? 'Payment',
             'callback_url' => $request->callbackUrl,
             'notification_id' => $ipn['ipn_id'] ?? null,

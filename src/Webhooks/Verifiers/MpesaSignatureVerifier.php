@@ -9,23 +9,26 @@ use Paysasa\Payments\DTOs\WebhookPayload;
 use Paysasa\Payments\Exceptions\WebhookVerificationException;
 
 /**
- * Daraja does not HMAC-sign STK/C2B/B2C callbacks — Safaricom's own
- * recommended mitigation is (a) keeping the callback URL secret/unguessable
- * and (b) restricting it to Safaricom's published IP ranges. This verifier
- * enforces an IP allowlist when
- * config('paysasa.drivers.mpesa.webhook_ip_allowlist') is populated; if left
- * empty (e.g. in sandbox, where Safaricom's sandbox source IPs are not
- * published) it passes through and relies on the callback URL being kept
- * secret. Populate the allowlist before going to production.
+ * Daraja does not HMAC-sign STK/C2B/B2C callbacks.
+ * In production, it fails closed if the allowlist is empty unless an opaque alias is used.
  */
 class MpesaSignatureVerifier implements SignatureVerifier
 {
-    public function __construct(protected array $ipAllowlist = [])
-    {
+    public function __construct(
+        protected array $ipAllowlist = [],
+        protected bool $isOpaqueRoute = false,
+        protected ?string $environment = null,
+    ) {
     }
 
     public function verify(WebhookPayload $payload): void
     {
+        $env = $this->environment ?? app()->environment();
+
+        if ($env === 'production' && $this->ipAllowlist === [] && ! $this->isOpaqueRoute) {
+            throw WebhookVerificationException::misconfigured('mpesa');
+        }
+
         if ($this->ipAllowlist === []) {
             return;
         }

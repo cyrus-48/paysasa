@@ -102,7 +102,7 @@ Implement only the interfaces your provider actually supports:
 
 ## Banking rails specifically
 
-Extend `Drivers\Banking\AbstractBankingDriver` (see `PesaLinkDriver`/`EftDriver`/`RtgsDriver` as templates) and override `endpointPrefix()` plus any payload-shape method (`resolveAccount()`, `transfer()`, `responseFromTransfer()`) that your bank's actual API deviates from the generic shape on — see `04-architecture.md` for why there's no single "correct" bank API shape to standardize on further than this.
+Extend `Drivers\Banking\AbstractBankingDriver` (see `PesaLinkDriver` as an example) and override `endpointPrefix()` plus any payload-shape method (`resolveAccount()`, `transfer()`, `responseFromTransfer()`) that your bank's actual API deviates from the generic shape on — see `04-architecture.md` for why there's no single "correct" bank API shape to standardize on further than this.
 
 ## Testing your driver
 

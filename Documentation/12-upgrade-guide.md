@@ -16,7 +16,7 @@ Internal classes (`Services/*` HTTP clients, driver-internal helper methods, any
 ## Upgrading between minor versions
 
 ```bash
-composer update paysasa/payments
+composer update cyrus-48/paysasa
 php artisan vendor:publish --tag=paysasa-config --force  # review the diff before overwriting your customized config
 php artisan vendor:publish --tag=paysasa-migrations
 php artisan migrate
@@ -32,6 +32,22 @@ Each major version ships an `UPGRADE-{version}.md` at the package root (not yet 
 2. Any required data migration for renamed/restructured columns, shipped as an idempotent Artisan command (`paysasa:upgrade-vN`) rather than expecting you to write it yourself.
 3. Config keys that changed shape, with before/after examples.
 
-## This baseline (1.0)
+## Upgrading to 1.0 (Refactoring & Hardening)
 
-Nothing to migrate from — this is the initial architecture. Once 1.0 ships, the enum-based `PaymentProvider` and `PaymentStatus` closed sets are the most likely source of a future breaking change if a genuinely new provider category or status is needed that doesn't fit the existing cases; that's a deliberate, documented trade-off of using backed enums for type safety (see [`06-driver-development-guide.md`](06-driver-development-guide.md#adding-webhook-support-for-your-driver)) and is flagged here so it isn't a surprise later.
+### 1. Driver removals
+The following unproven and phantom drivers have been removed:
+- `GooglePayDriver` & `ApplePayDriver`: Use `Payment::driver('stripe')->paymentMethod($token)->charge()` instead.
+- `TKashDriver`: Telkom Kenya lacks a standardized public API; removed until an official API is released.
+- `EftDriver`, `RtgsDriver`, and `VirtualAccountDriver`: Removed in favor of `PesaLinkDriver` (experimental) or custom bank drivers extending `AbstractBankingDriver`.
+
+### 2. Money Value Object & Fraction Validation
+Amounts in `ChargeRequest` now use the immutable `Money` value object. Fractional units for whole-unit currencies (e.g. KES) are rejected (`InvalidAmountException`) rather than silently truncated.
+
+### 3. State Machine & Event Dispatching
+Status transitions are now strictly managed by `TransitionPayment` with database row-level locking (`lockForUpdate()`). Webhook-settled payments now consistently fire terminal events (`PaymentSuccessful`, `PaymentFailed`, `PaymentCancelled`, `PaymentExpired`). Illegal transitions (such as a late Failed callback attempting to overwrite a Successful payment) are rejected and emit `PaymentStateConflict`.
+
+### 4. Reconciliation and Webhook Intake
+- Dispatched payments are swept and verified automatically via `paysasa:reconcile` and single-shot `VerifyPaymentStatusJob`.
+- Unmatched webhooks are tracked and reviewable via `php artisan paysasa:webhooks:unmatched`.
+- In production, M-Pesa webhooks fail-closed if `MPESA_WEBHOOK_IP_ALLOWLIST` is unconfigured unless an opaque secret route alias is configured.
+

@@ -18,7 +18,7 @@ it('fakes a charge without hitting a real provider and records it for assertions
 
     expect($response->successful())->toBeTrue();
 
-    Payment::assertCharged(fn ($request) => $request->amount === 2500.0 && $request->reference === 'INV1001');
+    Payment::assertCharged(fn ($request) => $request->amountMajor() === 2500.0 && $request->reference === 'INV1001');
     Payment::assertChargedOn('mpesa');
     Payment::assertChargedTimes(1);
 });

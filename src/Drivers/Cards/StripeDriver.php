@@ -37,7 +37,7 @@ class StripeDriver extends AbstractDriver implements Authorizable, Refundable, W
 
     protected function minorAmount(ChargeRequest $request): int
     {
-        return $request->currency->toMinorUnits($request->amount);
+        return $request->amount->minor;
     }
 
     public function charge(ChargeRequest $request): PaymentResponse

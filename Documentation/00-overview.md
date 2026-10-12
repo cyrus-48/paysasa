@@ -71,10 +71,9 @@ paysasa/
 │   ├── Enums/                      # PaymentStatus, PaymentProvider, Currency, TransactionType, ...
 │   ├── Managers/                   # PaymentManager — Laravel Manager Pattern driver resolution
 │   ├── Drivers/                    # Concrete provider implementations, grouped by category
-│   │   ├── MobileMoney/            # MpesaDriver, AirtelMoneyDriver, TKashDriver
+│   │   ├── MobileMoney/            # MpesaDriver, AirtelMoneyDriver
 │   │   ├── Cards/                  # StripeDriver, PesapalDriver, FlutterwaveDriver, PaystackDriver
-│   │   ├── Wallets/                # GooglePayDriver, ApplePayDriver (adapters, see 04-architecture.md)
-│   │   └── Banking/                # AbstractBankingDriver, PesaLinkDriver, EftDriver, RtgsDriver, VirtualAccountDriver
+│   │   └── Banking/                # AbstractBankingDriver, PesaLinkDriver (experimental)
 │   ├── Services/                   # Raw-HTTP, provider-faithful clients (DarajaClient, StripeClient, ...) — no Paysasa DTOs here
 │   ├── Actions/                    # Single-purpose orchestrators: InitiatePayment, VerifyPayment, ProcessRefund, RunFraudChecks
 │   ├── Events/                     # 11 lifecycle events — see 04-architecture.md#event-lifecycle

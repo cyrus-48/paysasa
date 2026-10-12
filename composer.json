@@ -1,6 +1,6 @@
 {
     "name": "cyrus-48/paysasa",
-    "description": "A unified, driver-based payment gateway abstraction for Laravel, purpose-built for the Kenyan market (M-Pesa, Airtel Money, Stripe, Pesapal, Flutterwave, Paystack, PesaLink, EFT/RTGS and more) behind one consistent API.",
+    "description": "A unified, driver-based payment gateway abstraction for Laravel, purpose-built for the Kenyan market (M-Pesa, Airtel Money, Stripe, Pesapal, Flutterwave, Paystack, PesaLink) behind one consistent API.",
     "keywords": [
         "laravel", "payments", "mpesa", "daraja", "airtel-money", "kenya", "fintech",
         "stripe", "pesapal", "flutterwave", "paystack", "pesalink", "mobile-money"
@@ -21,10 +21,15 @@
     ],
     "require": {
         "php": "^8.2",
-        "illuminate/support": "^11.0|^12.0|^13.12",
+        "illuminate/bus": "^11.0|^12.0|^13.12",
+        "illuminate/cache": "^11.0|^12.0|^13.12",
+        "illuminate/console": "^11.0|^12.0|^13.12",
         "illuminate/database": "^11.0|^12.0|^13.12",
-        "illuminate/queue": "^11.0|^12.0|^13.12",
+        "illuminate/events": "^11.0|^12.0|^13.12",
         "illuminate/http": "^11.0|^12.0|^13.12",
+        "illuminate/queue": "^11.0|^12.0|^13.12",
+        "illuminate/routing": "^11.0|^12.0|^13.12",
+        "illuminate/support": "^11.0|^12.0|^13.12",
         "guzzlehttp/guzzle": "^7.8",
         "ramsey/uuid": "^4.7",
         "nesbot/carbon": "^2.72|^3.0"
@@ -41,8 +46,7 @@
         "phpunit/phpunit": "^10.5|^11.0|^12.0"
     },
     "suggest": {
-        "stripe/stripe-php": "Required if you use the Stripe driver's SDK-backed features (paysasa also ships a raw-HTTP fallback client).",
-        "pusher/pusher-php-server": "Required to broadcast payment status updates in real time via PaymentStatusUpdated."
+        "stripe/stripe-php": "Required if you use the Stripe driver's SDK-backed features (paysasa also ships a raw-HTTP fallback client)."
     },
     "autoload": {
         "psr-4": {

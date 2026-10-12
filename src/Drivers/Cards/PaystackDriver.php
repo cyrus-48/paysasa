@@ -45,7 +45,7 @@ class PaystackDriver extends AbstractDriver implements PayoutCapable, Refundable
 
         $result = $this->client()->initializeTransaction([
             'email' => $request->customer?->email ?? 'customer@'.parse_url(config('app.url'), PHP_URL_HOST),
-            'amount' => $request->currency->toMinorUnits($request->amount),
+            'amount' => $request->amount->minor,
             'currency' => $request->currency->value,
             'reference' => $reference,
             'callback_url' => $request->callbackUrl,
@@ -85,7 +85,7 @@ class PaystackDriver extends AbstractDriver implements PayoutCapable, Refundable
 
         $result = $this->client()->initiateTransfer([
             'source' => 'balance',
-            'amount' => $request->currency->toMinorUnits($request->amount),
+            'amount' => $request->amount->minor,
             'recipient' => $recipient['data']['recipient_code'] ?? null,
             'reason' => $request->description ?? 'Payout',
             'reference' => $request->reference ?? Uuid::uuid4()->toString(),

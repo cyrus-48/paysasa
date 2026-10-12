@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace Paysasa\Payments\Actions;
 
+use GuzzleHttp\Exception\ConnectException;
+use Illuminate\Http\Client\ConnectionException;
 use Paysasa\Payments\Contracts\PaymentDriver;
 use Paysasa\Payments\Contracts\PaymentRepository;
 use Paysasa\Payments\DTOs\ChargeRequest;
 use Paysasa\Payments\DTOs\PaymentResponse;
-use Paysasa\Payments\Enums\PaymentStatus;
-use Paysasa\Payments\Events\PaymentFailed;
 use Paysasa\Payments\Events\PaymentInitiated;
 use Paysasa\Payments\Events\PaymentProcessing;
-use Paysasa\Payments\Events\PaymentSuccessful;
 use Paysasa\Payments\Exceptions\FraudSuspectedException;
 use Paysasa\Payments\Exceptions\ProviderApiException;
 use Paysasa\Payments\Support\IdempotencyManager;
@@ -32,6 +31,7 @@ class InitiatePayment
         protected IdempotencyManager $idempotency,
         protected RunFraudChecks $fraudChecks,
         protected PaymentLogger $logger,
+        protected TransitionPayment $transition,
     ) {
     }
 
@@ -47,8 +47,7 @@ class InitiatePayment
             } catch (FraudSuspectedException $e) {
                 $response = PaymentResponse::makeFailed($request->provider, (string) $payment->uuid, $e->getMessage());
                 $this->repository->recordAttempt($payment, $response, $e);
-                $this->repository->updateFromResponse($payment, $response);
-                event(new PaymentFailed($payment, $response, $e));
+                ($this->transition)($payment, $response, 'sync');
 
                 return $response;
             }
@@ -57,6 +56,25 @@ class InitiatePayment
 
             try {
                 $response = $driver->charge($request);
+            } catch (ConnectionException|ConnectException $e) {
+                $this->logger->error('Driver charge() connection timed out', [
+                    'exception' => $e->getMessage(),
+                ], $payment, $driver->provider()->value);
+
+                $response = PaymentResponse::makePending(
+                    $request->provider,
+                    (string) $payment->uuid,
+                    null,
+                    'Payment outcome uncertain due to network timeout. Verification or webhook pending.'
+                );
+
+                $this->repository->recordAttempt($payment, $response, $e);
+                $payment->update([
+                    'outcome_uncertain' => true,
+                    'expires_at' => now()->addMinutes((int) config("paysasa.drivers.{$driver->provider()->value}.pending_ttl_minutes", 15)),
+                ]);
+
+                return $response;
             } catch (ProviderApiException $e) {
                 $this->logger->error('Driver charge() raised a provider API exception', [
                     'exception' => $e->getMessage(),
@@ -65,20 +83,21 @@ class InitiatePayment
 
                 $response = PaymentResponse::makeFailed($request->provider, (string) $payment->uuid, $e->getMessage(), $e->rawResponse());
                 $this->repository->recordAttempt($payment, $response, $e);
-                $this->repository->updateFromResponse($payment, $response);
-                event(new PaymentFailed($payment, $response, $e));
+                ($this->transition)($payment, $response, 'sync');
 
                 return $response;
             }
 
             $this->repository->recordAttempt($payment, $response);
-            $payment = $this->repository->updateFromResponse($payment, $response);
+            ($this->transition)($payment, $response, 'sync');
 
-            match (true) {
-                $response->status === PaymentStatus::Successful => event(new PaymentSuccessful($payment, $response)),
-                $response->status === PaymentStatus::Failed => event(new PaymentFailed($payment, $response)),
-                default => null, // Pending/Processing/Authorized: terminal event fires later from the webhook or VerifyPaymentStatusJob
-            };
+            if ($response->pending()) {
+                $delaySeconds = (int) config("paysasa.drivers.{$driver->provider()->value}.initial_verify_delay", 45);
+                \Illuminate\Support\Facades\DB::afterCommit(function () use ($payment, $driver, $delaySeconds) {
+                    \Paysasa\Payments\Jobs\VerifyPaymentStatusJob::dispatch($payment, $driver->provider()->value)
+                        ->delay(now()->addSeconds($delaySeconds));
+                });
+            }
 
             return $response;
         });

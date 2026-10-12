@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Paysasa\Payments\Http\Controllers;
 
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -17,16 +18,7 @@ use Paysasa\Payments\Models\Webhook;
 use Paysasa\Payments\Webhooks\WebhookDispatcher;
 
 /**
- * Single entry point for every provider's inbound webhook/IPN/callback:
- * paysasa/webhooks/{provider}. The lifecycle here is deliberately uniform
- * across all 13 providers even though each one's payload shape differs —
- * see Documentation/06-webhook-guide.md for the full sequence diagram:
- *
- *   1. Persist the raw payload immediately (before verification), so a
- *      spoofed/failed request is still forensically recoverable.
- *   2. Verify the signature via the provider's Webhooks\Verifiers\* strategy.
- *   3. Deduplicate (replay-attack / provider-retry protection).
- *   4. Fire WebhookReceived, hand off to DispatchWebhookJob, ack fast.
+ * Single entry point for every provider's inbound webhook/IPN/callback.
  */
 class WebhookController extends Controller
 {
@@ -36,37 +28,81 @@ class WebhookController extends Controller
 
     public function handle(Request $request, string $provider): JsonResponse
     {
-        $providerEnum = PaymentProvider::tryFrom($provider);
+        $maxBodyBytes = (int) config('paysasa.webhooks.max_body_bytes', 65536);
+        $rawBody = $request->getContent();
+
+        if (strlen($rawBody) > $maxBodyBytes) {
+            return response()->json(['message' => 'Payload too large'], 413);
+        }
+
+        $aliases = config('paysasa.webhook_aliases', []);
+        $isOpaqueRoute = array_key_exists($provider, $aliases);
+        $resolvedProvider = $aliases[$provider] ?? $provider;
+
+        $providerEnum = PaymentProvider::tryFrom($resolvedProvider);
 
         if ($providerEnum === null) {
             return response()->json(['message' => 'Unknown provider'], 404);
         }
 
-        $rawBody = $request->getContent();
-        $parsedBody = $request->all();
-        $headers = $request->headers->all();
+        // Redact sensitive headers
+        $sensitive = ['authorization', 'cookie', 'set-cookie', 'php-auth-user', 'php-auth-pw', 'x-csrf-token'];
+        $filteredHeaders = array_filter(
+            $request->headers->all(),
+            fn ($key) => ! in_array(strtolower($key), $sensitive, true),
+            ARRAY_FILTER_USE_KEY
+        );
 
-        $payload = new WebhookPayload($providerEnum, $headers, $rawBody, $parsedBody);
+        $parsedBody = $request->all();
+        $payload = new WebhookPayload($providerEnum, $filteredHeaders, $rawBody, $parsedBody);
 
         $webhook = Webhook::create([
-            'provider' => $provider,
+            'provider' => $resolvedProvider,
             'status' => WebhookStatus::Received,
-            'headers' => $headers,
+            'headers' => $filteredHeaders,
             'payload' => $parsedBody,
             'ip_address' => $request->ip(),
         ]);
 
         try {
-            $this->dispatcher->verifierFor($provider)->verify($payload);
+            $this->dispatcher->verifierFor($resolvedProvider, $isOpaqueRoute)->verify($payload);
         } catch (WebhookVerificationException $e) {
-            $webhook->update(['status' => WebhookStatus::VerificationFailed, 'signature_valid' => false, 'error_message' => $e->getMessage()]);
+            $webhook->update([
+                'status' => WebhookStatus::VerificationFailed,
+                'signature_valid' => false,
+                'error_message' => $e->getMessage(),
+            ]);
 
             return response()->json(['message' => 'Signature verification failed'], 401);
         }
 
-        $webhook->update(['signature_valid' => true, 'verified_at' => now()]);
+        // De-duplication key
+        $providerEventId = $request->input('event_id') ?? $request->input('id');
+        $dedupeKey = is_string($providerEventId) && $providerEventId !== ''
+            ? $providerEventId
+            : hash('sha256', $resolvedProvider . $rawBody);
 
-        if ($this->isDuplicate($webhook)) {
+        $existing = Webhook::query()
+            ->where('provider', $resolvedProvider)
+            ->where('dedupe_key', $dedupeKey)
+            ->where('id', '!=', $webhook->id)
+            ->first();
+
+        if ($existing !== null) {
+            $webhook->update(['status' => WebhookStatus::Ignored]);
+
+            return response()->json(['message' => 'Duplicate webhook ignored'], 200);
+        }
+
+        try {
+            $webhook->update([
+                'dedupe_key' => $dedupeKey,
+                'provider_event_id' => is_string($providerEventId) ? $providerEventId : null,
+                'signature_valid' => true,
+                'verified_at' => now(),
+                'status' => WebhookStatus::Received,
+            ]);
+        } catch (UniqueConstraintViolationException) {
             $webhook->update(['status' => WebhookStatus::Ignored]);
 
             return response()->json(['message' => 'Duplicate webhook ignored'], 200);
@@ -74,27 +110,8 @@ class WebhookController extends Controller
 
         event(new WebhookReceived($webhook, $payload));
 
-        DispatchWebhookJob::dispatch($webhook, $headers, $rawBody);
+        DispatchWebhookJob::dispatch($webhook, $filteredHeaders, $rawBody);
 
         return response()->json(['message' => 'Webhook accepted'], 200);
-    }
-
-    /**
-     * A provider retrying an unacknowledged webhook (or an attacker
-     * replaying a captured one) produces an identical payload hash for the
-     * same provider within a short window — treat it as already handled
-     * rather than reprocessing and double-crediting a payment.
-     */
-    protected function isDuplicate(Webhook $webhook): bool
-    {
-        $fingerprint = hash('sha256', json_encode($webhook->payload));
-
-        return Webhook::query()
-            ->where('provider', $webhook->provider)
-            ->where('id', '!=', $webhook->id)
-            ->where('status', WebhookStatus::Processed->value)
-            ->where('created_at', '>=', now()->subMinutes(10))
-            ->get(['payload'])
-            ->contains(fn ($w) => hash('sha256', json_encode($w->payload)) === $fingerprint);
     }
 }

@@ -97,4 +97,12 @@ Every table listed in the original brief is implemented. Full column rationale l
 | `payment_methods` | Saved/tokenized payment methods (card-on-file, saved mobile money number). | Stores only the provider's vault token — **never** a raw PAN/CVV, which is what keeps the host app out of PCI SAQ D scope. |
 | `audit_logs` | Who did what to which sensitive record (refund approvals, credential rotation). | Append-only at the application layer; distinct from `payment_logs`, which is system/API activity rather than human actions. |
 
+## Hardening Columns (`2025_01_01_000010_update_payments_and_webhooks_tables.php`)
+
+- **`payments.last_checked_at` & `check_count`**: Track status sweep progress by `paysasa:reconcile` and single-shot verification jobs.
+- **`payments.outcome_uncertain`**: Boolean flag set when `charge()` encountered a network transport timeout (`ConnectionException`), signalling that money may have moved before provider acknowledgment was received.
+- **`payments.flags`**: JSON array storing detected anomalies such as `amount_mismatch`.
+- **`webhooks.dedupe_key`**: SHA-256 hash of raw inbound payload ensuring duplicate webhooks are ignored even without a provider event ID.
+- **`webhooks.match_attempts`**: Integer counter for resolving unmatched callbacks during reconciliation.
+
 See `database/migrations/*.php` for every column, its type, and an inline comment explaining its purpose — that's the authoritative reference, kept in sync with the schema by construction (docs that live next to code don't drift the way a separate schema doc does).

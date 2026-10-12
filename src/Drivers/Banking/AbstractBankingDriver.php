@@ -55,7 +55,7 @@ abstract class AbstractBankingDriver extends AbstractDriver implements BankingGa
 
         $response = $this->http()->withToken($this->config['api_key'] ?? '')->post($this->endpointPrefix().'/fund-transfer', [
             'reference' => $reference,
-            'amount' => $request->amount,
+            'amount' => $request->amountMajor(),
             'currency' => $request->currency->value,
             'beneficiaryAccountNumber' => $request->metadata['account_number'] ?? $request->phone,
             'beneficiaryBankCode' => $request->metadata['bank_code'] ?? $this->config['bank_code'] ?? null,

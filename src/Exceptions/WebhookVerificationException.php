@@ -25,4 +25,11 @@ class WebhookVerificationException extends PaymentException
             'header' => $header,
         ]);
     }
+
+    public static function misconfigured(string $provider): self
+    {
+        return new self("Webhook verification for [{$provider}] is misconfigured in production (empty allowlist and non-opaque route).", [
+            'provider' => $provider,
+        ]);
+    }
 }

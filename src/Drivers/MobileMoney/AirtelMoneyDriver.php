@@ -53,7 +53,7 @@ class AirtelMoneyDriver extends AbstractDriver implements PayoutCapable, Refunda
         $result = $this->client()->collect([
             'reference' => $request->reference ?? $transactionId,
             'phone' => $this->normalizePhone($request->phone),
-            'amount' => $request->amount,
+            'amount' => $request->amountMajor(),
             'transaction_id' => $transactionId,
         ]);
 
@@ -91,7 +91,7 @@ class AirtelMoneyDriver extends AbstractDriver implements PayoutCapable, Refunda
         $result = $this->client()->disburse([
             'phone' => $this->normalizePhone($request->phone),
             'reference' => $request->reference ?? $transactionId,
-            'amount' => $request->amount,
+            'amount' => $request->amountMajor(),
             'transaction_id' => $transactionId,
         ]);
 
@@ -136,8 +136,10 @@ class AirtelMoneyDriver extends AbstractDriver implements PayoutCapable, Refunda
 
     protected function normalizePhone(?string $phone): string
     {
-        $digits = preg_replace('/\D/', '', (string) $phone);
+        if ($phone === null) {
+            return '';
+        }
 
-        return str_starts_with($digits, '0') ? '254'.substr($digits, 1) : $digits;
+        return \Paysasa\Payments\ValueObjects\KenyanMsisdn::of($phone)->toString();
     }
 }

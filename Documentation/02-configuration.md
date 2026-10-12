@@ -96,10 +96,6 @@ Each listed class must implement `Paysasa\Payments\Contracts\FraudCheck`. Run in
 
 `client_id`, `client_secret`, `country` (default `KE`), `currency` (default `KES`), `callback_url`, `webhook_secret`.
 
-### `drivers.tkash`
-
-`api_key`, `merchant_code`, `callback_url`, `webhook_secret`. See the caveat in `src/Drivers/MobileMoney/TKashDriver.php` — Telkom's integration is bilateral, not a fixed public API.
-
 ### `drivers.stripe`
 
 `public_key`, `secret_key`, `webhook_secret`, `api_version` (default `2024-06-20`).

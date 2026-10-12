@@ -35,4 +35,53 @@ enum PaymentStatus: string
     {
         return in_array($this, [self::Successful, self::Refunded, self::PartiallyRefunded], true);
     }
+
+    /**
+     * @return list<self>
+     */
+    public function allowedNext(): array
+    {
+        return match ($this) {
+            self::Pending => [
+                self::Processing,
+                self::Authorized,
+                self::Successful,
+                self::Failed,
+                self::Cancelled,
+                self::Expired,
+            ],
+            self::Processing => [
+                self::Authorized,
+                self::Successful,
+                self::Failed,
+                self::Cancelled,
+                self::Expired,
+            ],
+            self::Authorized => [
+                self::Successful,
+                self::Cancelled,
+                self::Failed,
+                self::Expired,
+            ],
+            self::Successful => [
+                self::Refunded,
+                self::PartiallyRefunded,
+                self::Reversed,
+            ],
+            self::PartiallyRefunded => [
+                self::PartiallyRefunded,
+                self::Refunded,
+            ],
+            self::Expired => [
+                self::Successful, // late confirmation: money moved
+            ],
+            self::Failed, self::Cancelled,
+            self::Refunded, self::Reversed => [],
+        };
+    }
+
+    public function canTransitionTo(self $to): bool
+    {
+        return in_array($to, $this->allowedNext(), true);
+    }
 }

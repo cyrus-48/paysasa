@@ -25,7 +25,7 @@ class WebhookDispatcher
     {
     }
 
-    public function verifierFor(string $provider): SignatureVerifier
+    public function verifierFor(string $provider, bool $isOpaqueRoute = false): SignatureVerifier
     {
         $driverConfig = $this->config['drivers'][$provider] ?? [];
 
@@ -33,9 +33,9 @@ class WebhookDispatcher
             'stripe' => new StripeSignatureVerifier($driverConfig['webhook_secret'] ?? ''),
             'paystack' => new PaystackSignatureVerifier($driverConfig['secret_key'] ?? ''),
             'flutterwave' => new FlutterwaveSignatureVerifier($driverConfig['webhook_secret_hash'] ?? ''),
-            'mpesa' => new MpesaSignatureVerifier($driverConfig['webhook_ip_allowlist'] ?? []),
+            'mpesa' => new MpesaSignatureVerifier($driverConfig['webhook_ip_allowlist'] ?? [], $isOpaqueRoute),
             'pesapal' => new PesapalSignatureVerifier(),
-            'airtel', 'tkash', 'pesalink', 'eft', 'rtgs', 'virtual_account' => new HmacHeaderSignatureVerifier(
+            'airtel', 'pesalink' => new HmacHeaderSignatureVerifier(
                 $provider,
                 $driverConfig['webhook_secret'] ?? '',
             ),

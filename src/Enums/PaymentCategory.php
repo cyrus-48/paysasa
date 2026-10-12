@@ -8,6 +8,5 @@ enum PaymentCategory: string
 {
     case MobileMoney = 'mobile_money';
     case Card = 'card';
-    case Wallet = 'wallet';
     case Banking = 'banking';
 }

@@ -32,7 +32,25 @@ final class PaymentResponse
         public readonly ?string $receiptNumber = null,
         public readonly mixed $rawResponse = null,
         public readonly array $metadata = [],
+        public readonly bool $isReplayed = false,
     ) {
+    }
+
+    public static function fromPayment(\Paysasa\Payments\Models\Payment $payment, bool $replayed = false): self
+    {
+        return new self(
+            provider: $payment->provider,
+            status: $payment->status,
+            transactionId: (string) $payment->uuid,
+            providerReference: $payment->provider_reference,
+            amount: $payment->amount,
+            currency: $payment->currency,
+            message: $payment->failure_reason,
+            receiptNumber: $payment->receipt_number,
+            rawResponse: null,
+            metadata: $payment->metadata ?? [],
+            isReplayed: $replayed,
+        );
     }
 
     public static function makeSuccessful(
@@ -97,6 +115,11 @@ final class PaymentResponse
     public function cancelled(): bool
     {
         return $this->status === PaymentStatus::Cancelled;
+    }
+
+    public function replayed(): bool
+    {
+        return $this->isReplayed;
     }
 
     public function transactionId(): ?string

@@ -46,7 +46,7 @@ class FlutterwaveDriver extends AbstractDriver implements PayoutCapable, Refunda
 
         $result = $this->client()->initializePayment([
             'tx_ref' => $txRef,
-            'amount' => $request->amount,
+            'amount' => $request->amountMajor(),
             'currency' => $request->currency->value,
             'redirect_url' => $request->callbackUrl,
             'customer' => [
@@ -84,7 +84,7 @@ class FlutterwaveDriver extends AbstractDriver implements PayoutCapable, Refunda
         $result = $this->client()->transfer([
             'account_bank' => $request->metadata['bank_code'] ?? 'MPS', // MPS = Flutterwave's M-Pesa mobile money transfer code
             'account_number' => $request->phone,
-            'amount' => $request->amount,
+            'amount' => $request->amountMajor(),
             'currency' => $request->currency->value,
             'reference' => $request->reference ?? Uuid::uuid4()->toString(),
             'narration' => $request->description ?? 'Payout',

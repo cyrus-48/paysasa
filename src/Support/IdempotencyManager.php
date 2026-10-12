@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace Paysasa\Payments\Support;
 
+use Illuminate\Contracts\Cache\LockProvider;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Cache;
 use Paysasa\Payments\DTOs\ChargeRequest;
 use Paysasa\Payments\DTOs\PaymentResponse;
 use Paysasa\Payments\Exceptions\IdempotencyConflictException;
+use Paysasa\Payments\Models\Payment;
 
 /**
  * Guards charge() calls against duplicate submission — a customer
  * double-tapping "Pay", a client retrying after a network timeout, or a
- * queued job replaying after a crash. Backed by the cache store configured
- * in config('paysasa.idempotency.store') so it works correctly across a
- * horizontally-scaled app.
+ * queued job replaying after a crash.
  *
  * Contract: same idempotency key + same request fingerprint within the TTL
- * -> return the cached response without re-calling the provider. Same key
- * + different fingerprint -> IdempotencyConflictException (something is
- * wrong with the caller, e.g. key reuse across unrelated invoices).
+ * -> return the stored result without re-calling the provider. Same key
+ * + different fingerprint -> IdempotencyConflictException.
  */
 class IdempotencyManager
 {
@@ -53,24 +53,65 @@ class IdempotencyManager
 
         $key = $this->cacheKey($request->idempotencyKey);
         $fingerprint = $request->fingerprint();
+        $lockKey = "paysasa:idem:lock:{$request->idempotencyKey}";
 
-        $cached = $this->store()->get($key);
+        $store = $this->store();
+        $runner = function () use ($request, $key, $fingerprint, $callback) {
+            $cached = $this->store()->get($key);
 
-        if ($cached !== null) {
-            if ($cached['fingerprint'] !== $fingerprint) {
-                throw IdempotencyConflictException::payloadMismatch($request->idempotencyKey);
+            if ($cached !== null) {
+                if (($cached['fingerprint'] ?? null) !== $fingerprint) {
+                    throw IdempotencyConflictException::payloadMismatch($request->idempotencyKey);
+                }
+
+                if (isset($cached['payment_id'])) {
+                    $payment = Payment::find($cached['payment_id']);
+                    if ($payment !== null) {
+                        return PaymentResponse::fromPayment($payment, replayed: true);
+                    }
+                }
+
+                if (isset($cached['response']) && $cached['response'] instanceof PaymentResponse) {
+                    return $cached['response'];
+                }
             }
 
-            return $cached['response'];
+            // DB source of truth
+            $existing = Payment::query()->where('idempotency_key', $request->idempotencyKey)->first();
+            if ($existing !== null) {
+                return PaymentResponse::fromPayment($existing, replayed: true);
+            }
+
+            try {
+                $response = $callback();
+            } catch (UniqueConstraintViolationException $e) {
+                $existing = Payment::query()->where('idempotency_key', $request->idempotencyKey)->first();
+                if ($existing !== null) {
+                    return PaymentResponse::fromPayment($existing, replayed: true);
+                }
+
+                throw $e;
+            }
+
+            $payment = Payment::query()->where('idempotency_key', $request->idempotencyKey)->first();
+
+            $this->store()->put($key, [
+                'fingerprint' => $fingerprint,
+                'payment_id' => $payment?->id,
+                'response' => $response,
+            ], now()->addSeconds((int) ($this->config['ttl_seconds'] ?? 86400)));
+
+            return $response;
+        };
+
+        if (method_exists($store, 'lock') || $store->getStore() instanceof LockProvider) {
+            try {
+                return $store->lock($lockKey, 30)->block(5, $runner);
+            } catch (\Throwable) {
+                return $runner();
+            }
         }
 
-        $response = $callback();
-
-        $this->store()->put($key, [
-            'fingerprint' => $fingerprint,
-            'response' => $response,
-        ], now()->addSeconds($this->config['ttl_seconds'] ?? 86400));
-
-        return $response;
+        return $runner();
     }
 }

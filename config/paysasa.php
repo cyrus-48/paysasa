@@ -163,6 +163,8 @@ return [
             'c2b_confirmation_url' => env('MPESA_C2B_CONFIRMATION_URL'),
             // Comma-separated list of Safaricom source IPs allowed to call your webhook endpoints in production.
             'webhook_ip_allowlist' => array_filter(explode(',', (string) env('MPESA_WEBHOOK_IP_ALLOWLIST', ''))),
+            // Host allowlist when request overrides callback URL
+            'allowed_callback_hosts' => array_filter(explode(',', (string) env('MPESA_ALLOWED_CALLBACK_HOSTS', ''))),
             'base_urls' => [
                 'sandbox' => 'https://sandbox.safaricom.co.ke',
                 'production' => 'https://api.safaricom.co.ke',
@@ -182,19 +184,6 @@ return [
             'base_urls' => [
                 'sandbox' => 'https://openapiuat.airtel.africa',
                 'production' => 'https://openapi.airtel.africa',
-            ],
-        ],
-
-        'tkash' => [
-            'driver' => \Paysasa\Payments\Drivers\MobileMoney\TKashDriver::class,
-            'env' => env('TKASH_ENV', 'sandbox'),
-            'api_key' => env('TKASH_API_KEY'),
-            'merchant_code' => env('TKASH_MERCHANT_CODE'),
-            'callback_url' => env('TKASH_CALLBACK_URL'),
-            'webhook_secret' => env('TKASH_WEBHOOK_SECRET'),
-            'base_urls' => [
-                'sandbox' => 'https://api.tkash.co.ke/sandbox',
-                'production' => 'https://api.tkash.co.ke',
             ],
         ],
 
@@ -241,45 +230,13 @@ return [
 
         /*
         |----------------------------------------------------------------
-        | Digital Wallets
+        | Banking (Experimental)
         |----------------------------------------------------------------
         |
-        | Google Pay and Apple Pay are tokenization layers, not independent
-        | settlement rails: the wallet returns an encrypted payment token
-        | which must still be authorized/captured through an underlying card
-        | acquirer. Both drivers below decrypt/validate the wallet token and
-        | delegate settlement to the configured `gateway` driver.
-        |
-        */
-        'google_pay' => [
-            'driver' => \Paysasa\Payments\Drivers\Wallets\GooglePayDriver::class,
-            'gateway' => env('GOOGLE_PAY_GATEWAY', 'stripe'),
-            'merchant_id' => env('GOOGLE_PAY_MERCHANT_ID'),
-            'merchant_name' => env('GOOGLE_PAY_MERCHANT_NAME', env('APP_NAME')),
-            'gateway_merchant_id' => env('GOOGLE_PAY_GATEWAY_MERCHANT_ID'),
-        ],
-
-        'apple_pay' => [
-            'driver' => \Paysasa\Payments\Drivers\Wallets\ApplePayDriver::class,
-            'gateway' => env('APPLE_PAY_GATEWAY', 'stripe'),
-            'merchant_id' => env('APPLE_PAY_MERCHANT_ID'),
-            'merchant_certificate_path' => env('APPLE_PAY_MERCHANT_CERT_PATH'),
-            'merchant_key_path' => env('APPLE_PAY_MERCHANT_KEY_PATH'),
-            'domain_association_path' => env('APPLE_PAY_DOMAIN_ASSOCIATION_PATH'),
-        ],
-
-        /*
-        |----------------------------------------------------------------
-        | Banking
-        |----------------------------------------------------------------
-        |
-        | Kenyan bank rails (PesaLink, EFT, RTGS, Virtual Accounts, direct
-        | bank host-to-host APIs) have no single public standard the way
-        | Daraja or Stripe do — each acquiring bank issues its own API under
-        | a commercial agreement. The drivers below are adapters against
-        | the Contracts\BankingGateway contract; ship one concrete
-        | implementation per bank you integrate with by extending
-        | Drivers\Banking\AbstractBankingDriver.
+        | Kenyan bank rails have no single public standard the way Daraja
+        | or Stripe do — each acquiring bank issues its own API under a
+        | commercial agreement. PesaLink is provided as an experimental
+        | driver over Contracts\BankingGateway and AbstractBankingDriver.
         |
         */
         'pesalink' => [
@@ -293,32 +250,6 @@ return [
                 'sandbox' => env('PESALINK_SANDBOX_URL'),
                 'production' => env('PESALINK_PRODUCTION_URL'),
             ],
-        ],
-
-        'eft' => [
-            'driver' => \Paysasa\Payments\Drivers\Banking\EftDriver::class,
-            'bank_code' => env('EFT_BANK_CODE'),
-            'api_key' => env('EFT_API_KEY'),
-            'base_url' => env('EFT_BASE_URL'),
-            'webhook_secret' => env('EFT_WEBHOOK_SECRET'),
-        ],
-
-        'rtgs' => [
-            'driver' => \Paysasa\Payments\Drivers\Banking\RtgsDriver::class,
-            'bank_code' => env('RTGS_BANK_CODE'),
-            'api_key' => env('RTGS_API_KEY'),
-            'base_url' => env('RTGS_BASE_URL'),
-            'webhook_secret' => env('RTGS_WEBHOOK_SECRET'),
-            'cutoff_time' => env('RTGS_CUTOFF_TIME', '15:00'),
-        ],
-
-        'virtual_account' => [
-            'driver' => \Paysasa\Payments\Drivers\Banking\VirtualAccountDriver::class,
-            'bank_code' => env('VIRTUAL_ACCOUNT_BANK_CODE'),
-            'api_key' => env('VIRTUAL_ACCOUNT_API_KEY'),
-            'base_url' => env('VIRTUAL_ACCOUNT_BASE_URL'),
-            'account_prefix' => env('VIRTUAL_ACCOUNT_PREFIX', 'PSS'),
-            'webhook_secret' => env('VIRTUAL_ACCOUNT_WEBHOOK_SECRET'),
         ],
     ],
 

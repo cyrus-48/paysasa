@@ -3,10 +3,14 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Paysasa\Payments\Exceptions\IdempotencyConflictException;
 use Paysasa\Payments\Facades\Payment;
+use Paysasa\Payments\Jobs\VerifyPaymentStatusJob;
 
 beforeEach(function () {
+    Queue::fake([VerifyPaymentStatusJob::class]);
+
     Http::fake([
         'sandbox.safaricom.co.ke/oauth/v1/generate*' => Http::response(['access_token' => 'fake-token']),
         'sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest' => Http::response(['CheckoutRequestID' => 'ws_CO_dup', 'ResponseCode' => '0']),

@@ -3,7 +3,7 @@
 ## 1. Require the package
 
 ```bash
-composer require paysasa/payments
+composer require cyrus-48/paysasa
 ```
 
 Laravel package auto-discovery registers `PaysasaServiceProvider` and the `Payment` facade automatically (see `composer.json`'s `extra.laravel` block) — no manual provider registration needed on Laravel 11, 12, or 13.
@@ -100,7 +100,7 @@ Payment::driver('mpesa')->amount(1)->phone('254708374149')->reference('TEST-1')-
 
 ```bash
 php artisan vendor:publish --tag=paysasa-config --force  # to review, or just delete config/paysasa.php
-composer remove paysasa/payments
+composer remove cyrus-48/paysasa
 ```
 
 The migrations you published remain — drop the tables yourself with a new migration if you're fully decommissioning the package, since Paysasa never auto-drops tables that might hold transaction history you need to retain for compliance.

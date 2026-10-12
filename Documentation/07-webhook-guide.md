@@ -7,15 +7,11 @@ Every provider posts to the same pattern: `{APP_URL}/{config('paysasa.webhook_ro
 ```
 https://yourapp.test/paysasa/webhooks/mpesa
 https://yourapp.test/paysasa/webhooks/airtel
-https://yourapp.test/paysasa/webhooks/tkash
 https://yourapp.test/paysasa/webhooks/stripe
 https://yourapp.test/paysasa/webhooks/pesapal
 https://yourapp.test/paysasa/webhooks/flutterwave
 https://yourapp.test/paysasa/webhooks/paystack
 https://yourapp.test/paysasa/webhooks/pesalink
-https://yourapp.test/paysasa/webhooks/eft
-https://yourapp.test/paysasa/webhooks/rtgs
-https://yourapp.test/paysasa/webhooks/virtual_account
 ```
 
 The route accepts both `GET` and `POST` (Pesapal's IPN can be either, depending on how you configure it) and is registered without CSRF protection — see `routes/paysasa.php`.
@@ -24,12 +20,12 @@ The route accepts both `GET` and `POST` (Pesapal's IPN can be either, depending 
 
 | Provider | Scheme | Verifier |
 |---|---|---|
-| M-Pesa | No signing; IP allowlist (production) | `Verifiers\MpesaSignatureVerifier` |
+| M-Pesa | No signing; IP allowlist or secret route alias (production) | `Verifiers\MpesaSignatureVerifier` |
 | Stripe | `Stripe-Signature: t=...,v1=HMAC-SHA256("{t}.{body}", secret)`, ±5min replay window | `Verifiers\StripeSignatureVerifier` |
 | Paystack | `x-paystack-signature: HMAC-SHA512(body, secret_key)` | `Verifiers\PaystackSignatureVerifier` |
 | Flutterwave | `verif-hash` header, constant-time equality against dashboard-configured secret | `Verifiers\FlutterwaveSignatureVerifier` |
 | Pesapal | No signature; re-verifies server-to-server via `GetTransactionStatus` | `Verifiers\PesapalSignatureVerifier` |
-| Airtel / T-Kash / banking rails | `HMAC-SHA256(body, webhook_secret)` in a configurable header | `Verifiers\HmacHeaderSignatureVerifier` |
+| Airtel / PesaLink | `HMAC-SHA256(body, webhook_secret)` in a configurable header | `Verifiers\HmacHeaderSignatureVerifier` |
 
 Every verifier throws `Exceptions\WebhookVerificationException` on failure, which `WebhookController` catches and turns into a `401` plus a `webhooks` row with `status = verification_failed` — **never** a silent drop, since that row is your evidence trail if you're ever investigating a spoofing attempt.
 

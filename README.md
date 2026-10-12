@@ -2,9 +2,9 @@
 
 **A unified, driver-based payment gateway abstraction for Laravel 11, 12, and 13, purpose-built for the Kenyan market.**
 
-Paysasa gives a Laravel application one consistent API — `Payment::driver('mpesa')->amount(2500)->phone('0712345678')->charge()` — for M-Pesa, Airtel Money, T-Kash, Stripe, Pesapal, Flutterwave, Paystack, Google Pay, Apple Pay, and Kenyan bank rails (PesaLink, EFT, RTGS, virtual accounts). Business logic never talks to a provider SDK directly; it talks to Paysasa, and Paysasa talks to whichever driver is configured.
+Paysasa gives a Laravel application one consistent API — `Payment::driver('mpesa')->amount(2500)->phone('0712345678')->charge()` — for M-Pesa, Airtel Money, Stripe, Pesapal, Flutterwave, Paystack, and PesaLink. Business logic never talks to a provider SDK directly; it talks to Paysasa, and Paysasa talks to whichever driver is configured.
 
-This README is the entry point. The full architecture specification — the 20-point technical blueprint this package was built against — lives in [`Documentation/`](Documentation/00-overview.md).
+This README is the entry point. The full architecture specification lives in [`Documentation/`](Documentation/00-overview.md).
 
 ---
 
@@ -21,7 +21,7 @@ Every Kenyan Laravel project ends up writing the same brittle integration code a
 ## Installation
 
 ```bash
-composer require paysasa/payments
+composer require cyrus-48/paysasa
 php artisan paysasa:install --migrate
 ```
 
@@ -64,14 +64,31 @@ Payment::driver('pesalink')->amount(50000)->reference('PAYOUT-99')->metadata(['a
 
 Every driver returns the exact same [`PaymentResponse`](src/DTOs/PaymentResponse.php) shape — `successful()`, `failed()`, `pending()`, `cancelled()`, `transactionId()`, `providerReference()`, `amount()`, `currency()`, `status()`, `receiptNumber()`, `rawResponse()` — so application code is written once against the abstraction, never against a specific gateway.
 
-## Supported providers
+### Digital Wallets (Google Pay & Apple Pay)
 
-| Category | Drivers | Notes |
-|---|---|---|
-| Mobile Money | `mpesa`, `airtel`, `tkash` | STK/USSD push, C2B, B2C, reversal, balance |
-| Cards | `stripe`, `pesapal`, `flutterwave`, `paystack` | Direct charge (Stripe) or hosted checkout (others) |
-| Wallets | `google_pay`, `apple_pay` | Adapters that delegate settlement to a card `gateway` driver — see [Documentation/04-architecture.md](Documentation/04-architecture.md#wallets-are-adapters-not-rails) |
-| Banking | `pesalink`, `eft`, `rtgs`, `virtual_account` | Generic bank-rail abstraction — extend `AbstractBankingDriver` per bank you integrate |
+Google Pay and Apple Pay are client-side tokenization layers over card gateways, not independent settlement rails. The frontend (e.g., Stripe Elements or Payment Request Button) converts the wallet token into a payment method token, which you charge seamlessly using the `stripe` driver:
+
+```php
+Payment::driver('stripe')
+    ->amount(25)
+    ->currency('USD')
+    ->cardToken($paymentMethodId)
+    ->metadata(['wallet' => 'apple_pay'])
+    ->reference('INV1002')
+    ->charge();
+```
+
+## Supported providers & maturity
+
+| Driver | Category | Status | Capabilities |
+|---|---|---|---|
+| `mpesa` | Mobile Money | **Stable** | STK Push, C2B, B2C, reversals, balance |
+| `stripe` | Cards | **Stable** | PaymentIntents, charges, refunds |
+| `airtel` | Mobile Money | **Beta** | USSD push, collections, refunds |
+| `pesapal` | Cards | **Beta** | Hosted checkout, IPN |
+| `flutterwave` | Cards | **Beta** | Standard charge, webhook handling |
+| `paystack` | Cards | **Beta** | Charge initialization, webhook verification |
+| `pesalink` | Banking | **Experimental** | Account transfers, bank rails (bring your own bank) |
 
 ## Testing your integration
 
