@@ -2,21 +2,33 @@
 
 **A unified, driver-based payment gateway abstraction for Laravel 11, 12, and 13, purpose-built for the Kenyan market.**
 
-Paysasa gives a Laravel application one consistent API — `Payment::driver('mpesa')->amount(2500)->phone('0712345678')->charge()` — for M-Pesa, Airtel Money, Stripe, Pesapal, Flutterwave, Paystack, and PesaLink. Business logic never talks to a provider SDK directly; it talks to Paysasa, and Paysasa talks to whichever driver is configured.
+Paysasa gives a Laravel application one consistent, hardened API — `Payment::driver('mpesa')->amount(2500)->phone('0712345678')->charge()` — for M-Pesa, Airtel Money, Stripe, Pesapal, Flutterwave, Paystack, and PesaLink. Business logic never talks to a provider SDK directly; it talks to Paysasa, and Paysasa orchestrates validation, idempotency, persistence, state transitions, events, and background reconciliation.
 
-This README is the entry point. The full architecture specification lives in [`Documentation/`](Documentation/00-overview.md).
+This README is the quickstart and overview. The comprehensive architecture specification lives in [`Documentation/`](Documentation/00-overview.md).
 
 ---
 
-## Why
+## Key Highlights
 
-Every Kenyan Laravel project ends up writing the same brittle integration code against Safaricom's Daraja API, then again against Stripe, then again against Pesapal, each with its own auth scheme, its own webhook shape, its own retry semantics — usually scattered across controllers with no shared persistence model, no idempotency protection, and no events for the rest of the app to react to. Paysasa is that integration layer, built once, tested, and made extensible.
+- **Unified Fluent API:** Consistent methods across all mobile money, card, and banking providers.
+- **Strict State Machine:** Centralized `TransitionPayment` engine with pessimistic row-locking (`lockForUpdate()`) preventing race conditions (e.g. a late failed callback cannot overwrite a successful payment).
+- **Money Safety (No Silent Truncation):** Immutable `Money` value object uses integer minor units. Fractional units for whole-unit rails (like Safaricom M-Pesa) are strictly rejected with `InvalidAmountException` rather than silently truncated.
+- **Strict Phone Normalization:** `KenyanMsisdn` validates and standardizes `07xx`, `01xx`, and `+254` phone numbers into E.164 formats.
+- **Guaranteed Terminal Lifecycle Events:** Both synchronously-settled charges and webhook-settled transactions (such as M-Pesa STK push) reliably dispatch `PaymentSuccessful`, `PaymentFailed`, `PaymentCancelled`, and `PaymentExpired`.
+- **Self-Healing Reconciliation:** Background sweep (`paysasa:reconcile`) combined with single-shot `VerifyPaymentStatusJob` ensures lost or delayed webhooks never leave payments pending indefinitely.
+- **Fail-Closed Webhook Security:** Automatic 64KB body size limit, header redaction, SHA-256 raw-body deduplication, and fail-closed M-Pesa verification in production.
+- **`Payment::fake()` Testing:** Comprehensive test assertions that fake network and persistence layers without touching external APIs.
+
+---
 
 ## Requirements
 
 - PHP 8.2+
-- Laravel 11.x, 12.x, or 13.x (13.x requires laravel/framework ^13.12 — see the note in [`02-configuration.md`](Documentation/02-configuration.md#laravel-13))
-- A queue worker for asynchronous webhook/verification processing (recommended: Redis + `php artisan queue:work`)
+- Laravel 11.x, 12.x, or 13.x
+- Database: MySQL 8.0+, PostgreSQL 13+, or SQLite 3.35+
+- A queue worker for asynchronous webhook and verification processing (`php artisan queue:work`)
+
+---
 
 ## Installation
 
@@ -25,107 +37,199 @@ composer require cyrus-48/paysasa
 php artisan paysasa:install --migrate
 ```
 
-This publishes `config/paysasa.php`, publishes and runs the package migrations, and prints the credentials you need to set per provider. See [`Documentation/01-installation.md`](Documentation/01-installation.md) for the full walkthrough and [`Documentation/02-configuration.md`](Documentation/02-configuration.md) for every config key.
+This publishes `config/paysasa.php`, publishes and runs database migrations, and prompts for provider credentials. See [`Documentation/01-installation.md`](Documentation/01-installation.md) for detailed instructions.
 
-## Quick start
+---
+
+## Quick Start
+
+### Initiating a Payment (e.g. M-Pesa STK Push)
 
 ```php
 use Paysasa\Payments\Facades\Payment;
 
-// Collect a payment via M-Pesa STK Push
+// Initiate an M-Pesa STK push
 $response = Payment::driver('mpesa')
     ->amount(2500)
     ->currency('KES')
-    ->phone('254712345678')
+    ->phone('0712345678')
     ->customer($user)
-    ->reference('INV1001')
+    ->reference('INV-1001')
     ->description('School Fees')
-    ->metadata([
-        'student_id' => 10,
-        'invoice' => 455,
-    ])
+    ->metadata(['student_id' => 10])
     ->charge();
 
 if ($response->successful()) {
-    // synchronous providers (cards) settle immediately
+    // Synchronous providers (e.g. pre-authorized cards) settle immediately
+    $receipt = $response->receiptNumber();
 } elseif ($response->pending()) {
-    // async providers (STK push, hosted checkout) settle later via webhook —
-    // listen for Paysasa\Payments\Events\PaymentSuccessful instead
+    // Asynchronous providers (STK push, hosted checkouts) settle via webhook or reconciler
+    $checkoutId = $response->providerReference();
 }
 ```
 
-Swapping providers is a one-word change:
+### Switching Providers
+
+Swapping gateways requires only changing the driver name:
 
 ```php
-Payment::driver('stripe')->amount(25)->currency('USD')->cardToken($pm)->reference('INV1002')->charge();
-Payment::driver('paystack')->amount(1000)->phone('254712345678')->reference('INV1003')->charge();
-Payment::driver('pesalink')->amount(50000)->reference('PAYOUT-99')->metadata(['account_number' => '0123456789', 'bank_code' => '01'])->payout();
-```
-
-Every driver returns the exact same [`PaymentResponse`](src/DTOs/PaymentResponse.php) shape — `successful()`, `failed()`, `pending()`, `cancelled()`, `transactionId()`, `providerReference()`, `amount()`, `currency()`, `status()`, `receiptNumber()`, `rawResponse()` — so application code is written once against the abstraction, never against a specific gateway.
-
-### Digital Wallets (Google Pay & Apple Pay)
-
-Google Pay and Apple Pay are client-side tokenization layers over card gateways, not independent settlement rails. The frontend (e.g., Stripe Elements or Payment Request Button) converts the wallet token into a payment method token, which you charge seamlessly using the `stripe` driver:
-
-```php
+// Stripe Card (Tokenized)
 Payment::driver('stripe')
     ->amount(25)
     ->currency('USD')
-    ->cardToken($paymentMethodId)
-    ->metadata(['wallet' => 'apple_pay'])
-    ->reference('INV1002')
+    ->paymentMethod($paymentMethodId)
+    ->reference('INV-1002')
+    ->charge();
+
+// Paystack
+Payment::driver('paystack')
+    ->amount(1000)
+    ->phone('0712345678')
+    ->reference('INV-1003')
+    ->charge();
+
+// PesaLink Bank Transfer (Experimental)
+Payment::driver('pesalink')
+    ->amount(50000)
+    ->reference('PAYOUT-99')
+    ->metadata(['account_number' => '0123456789', 'bank_code' => '01'])
+    ->payout();
+```
+
+### Digital Wallets (Google Pay & Apple Pay)
+
+Neither Google Pay nor Apple Pay is an independent settlement network. They are client-side tokenization layers over card networks. Frontend SDKs (such as Stripe Elements or the Payment Request Button) exchange device credentials for a payment method token (`pm_*`), which you process via `stripe`:
+
+```php
+Payment::driver('stripe')
+    ->amount(2500)
+    ->currency('KES')
+    ->paymentMethod($stripePaymentMethodId)
+    ->reference('INV-1004')
     ->charge();
 ```
 
-## Supported providers & maturity
+---
+
+## Listening to Lifecycle Events
+
+Because asynchronous payments settle via callbacks or reconciliation jobs, business logic should listen for terminal events:
+
+```php
+use Illuminate\Support\Facades\Event;
+use Paysasa\Payments\Events\PaymentSuccessful;
+use Paysasa\Payments\Events\PaymentFailed;
+use Paysasa\Payments\Events\PaymentExpired;
+
+// In your EventServiceProvider or listener:
+Event::listen(PaymentSuccessful::class, function (PaymentSuccessful $event) {
+    $payment = $event->payment;
+    // Dispatch order, send SMS receipt, update subscription...
+});
+
+Event::listen(PaymentFailed::class, function (PaymentFailed $event) {
+    // Alert customer, log failure reason...
+});
+```
+
+### Anomaly Events
+
+Paysasa also emits events when unexpected conditions occur:
+- `PaymentStateConflict`: Triggered when an illegal transition is rejected (e.g. a late Failed callback attempting to overwrite an already Successful payment).
+- `PaymentAmountMismatch`: Triggered when a callback's amount differs from the expected amount, keeping the payment in `processing` for manual review.
+- `WebhookUnmatched`: Triggered when an incoming webhook cannot be matched to any payment record after multiple retry attempts.
+
+---
+
+## Supported Providers & Maturity
 
 | Driver | Category | Status | Capabilities |
 |---|---|---|---|
-| `mpesa` | Mobile Money | **Stable** | STK Push, C2B, B2C, reversals, balance |
-| `stripe` | Cards | **Stable** | PaymentIntents, charges, refunds |
+| `mpesa` | Mobile Money | **Stable** | STK Push, C2B, B2C, reversals, balance inquiries |
+| `stripe` | Cards | **Stable** | PaymentIntents, direct charges, refunds, captures |
 | `airtel` | Mobile Money | **Beta** | USSD push, collections, refunds |
-| `pesapal` | Cards | **Beta** | Hosted checkout, IPN |
-| `flutterwave` | Cards | **Beta** | Standard charge, webhook handling |
+| `pesapal` | Cards | **Beta** | Hosted checkout, IPN callbacks |
+| `flutterwave` | Cards | **Beta** | Standard charges, webhook verification |
 | `paystack` | Cards | **Beta** | Charge initialization, webhook verification |
-| `pesalink` | Banking | **Experimental** | Account transfers, bank rails (bring your own bank) |
+| `pesalink` | Banking | **Experimental** | Account transfers, banking rails (bring your own bank) |
 
-## Testing your integration
+---
+
+## Artisan Commands
+
+Paysasa provides several Artisan commands for operation, reconciliation, and troubleshooting:
+
+```bash
+# Initial package setup, config, and migration publishing
+php artisan paysasa:install --migrate
+
+# Run reconciliation sweep (sweeps pending/processing payments past threshold)
+php artisan paysasa:reconcile
+
+# View unmatched webhook callbacks needing investigation
+php artisan paysasa:webhooks:unmatched
+
+# Inspect the status and history of a specific payment reference
+php artisan paysasa:status INV-1001
+
+# Register M-Pesa C2B validation and confirmation URLs with Safaricom
+php artisan paysasa:mpesa:register-urls
+```
+
+> **Automatic Scheduling:** `paysasa:reconcile` automatically registers in Laravel's scheduler to run every minute when `paysasa.reconcile.schedule_enabled` is `true`.
+
+---
+
+## Testing Your Integration
+
+Use `Payment::fake()` in your unit and feature tests to simulate payment flows without hitting third-party APIs:
 
 ```php
 use Paysasa\Payments\Facades\Payment;
 
 Payment::fake();
 
-// ... exercise your code ...
+// Run your application code...
+$user->checkout();
 
-Payment::assertCharged(fn ($request) => $request->amount === 2500.0);
+// Assertions:
+Payment::assertCharged(fn ($request) => $request->amountMajor() === 2500.0);
 Payment::assertChargedOn('mpesa');
 Payment::assertChargedTimes(1);
 ```
 
-`Payment::fake()` never touches the database, the queue, or the network — see [`Documentation/09-testing.md`](Documentation/09-testing.md).
+You can also queue specific failure or pending responses:
 
-## Documentation
+```php
+Payment::fake([
+    PaymentResponse::makeFailed(PaymentProvider::Mpesa, message: 'DS timeout user cannot be reached'),
+]);
+```
+
+---
+
+## Documentation Index
 
 | # | Document | Covers |
 |---|---|---|
 | — | [00-overview.md](Documentation/00-overview.md) | High-level system architecture, principles, package structure |
-| 1 | [01-installation.md](Documentation/01-installation.md) | Installation guide |
-| 2 | [02-configuration.md](Documentation/02-configuration.md) | Configuration guide, every env var |
-| 3 | [03-quickstart.md](Documentation/03-quickstart.md) | Quick start, common flows (STK, cards, refunds, payouts) |
-| 4 | [04-architecture.md](Documentation/04-architecture.md) | Contracts, service layer, driver architecture, class diagrams, transaction/webhook/event lifecycles, queue workflow, auth flow, error handling, wallets-as-adapters |
-| 5 | [05-database-schema.md](Documentation/05-database-schema.md) | Full ERD and column-by-column explanation |
-| 6 | [06-driver-development-guide.md](Documentation/06-driver-development-guide.md) | Writing a third-party driver without touching core |
-| 7 | [07-webhook-guide.md](Documentation/07-webhook-guide.md) | Webhook lifecycle, signature verification per provider, replay protection |
-| 8 | [08-security.md](Documentation/08-security.md) | Security architecture: HMAC, idempotency, PCI DSS, OWASP, secrets |
-| 9 | [09-testing.md](Documentation/09-testing.md) | Testing strategy: `Payment::fake()`, feature/unit/integration tests |
-| 10 | [10-performance-and-scalability.md](Documentation/10-performance-and-scalability.md) | Performance optimization and scalability considerations |
-| 11 | [11-troubleshooting.md](Documentation/11-troubleshooting.md) | Common errors and fixes |
-| 12 | [12-upgrade-guide.md](Documentation/12-upgrade-guide.md) | Semver policy and upgrade notes |
-| 13 | [13-contributing.md](Documentation/13-contributing.md) | Contribution guide, coding standards |
-| 14 | [14-roadmap.md](Documentation/14-roadmap.md) | Future roadmap |
+| 1 | [01-installation.md](Documentation/01-installation.md) | Installation guide, prerequisites, and service registration |
+| 2 | [02-configuration.md](Documentation/02-configuration.md) | Comprehensive configuration reference, driver options, env variables |
+| 3 | [03-quickstart.md](Documentation/03-quickstart.md) | Step-by-step integration guide for STK push, cards, refunds, and payouts |
+| 4 | [04-architecture.md](Documentation/04-architecture.md) | State machine, contracts, transition flow, class diagrams, lifecycles |
+| 5 | [05-database-schema.md](Documentation/05-database-schema.md) | Entity relationship diagrams (ERD) and column-level schema definitions |
+| 6 | [06-driver-development-guide.md](Documentation/06-driver-development-guide.md) | Guide to authoring custom drivers and banking implementations |
+| 7 | [07-webhook-guide.md](Documentation/07-webhook-guide.md) | Webhook intake, signature verification, deduping, and retry handling |
+| 8 | [08-security.md](Documentation/08-security.md) | Security model: HMAC signing, IP allowlisting, PCI DSS scope, secret vault |
+| 9 | [09-testing.md](Documentation/09-testing.md) | Testing best practices using `Payment::fake()`, Pest, and HTTP fakes |
+| 10 | [10-performance-and-scalability.md](Documentation/10-performance-and-scalability.md) | High-throughput queue configuration, connection pooling, and caching |
+| 11 | [11-troubleshooting.md](Documentation/11-troubleshooting.md) | Common errors, Daraja gotchas, and resolution procedures |
+| 12 | [12-upgrade-guide.md](Documentation/12-upgrade-guide.md) | Semantic versioning policy and version-to-version migration notes |
+| 13 | [13-contributing.md](Documentation/13-contributing.md) | Contribution guidelines, coding standards, and PR workflows |
+| 14 | [14-roadmap.md](Documentation/14-roadmap.md) | Implemented scope and future feature considerations |
+
+---
 
 ## License
 
-MIT.
+MIT License. See [LICENSE](LICENSE) for details.
