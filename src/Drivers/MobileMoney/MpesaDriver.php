@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Paysasa\Payments\Drivers\MobileMoney;
 
 use Paysasa\Payments\Contracts\BalanceInquirable;
+use Paysasa\Payments\Contracts\ConfirmsCallbacks;
 use Paysasa\Payments\Contracts\PayoutCapable;
 use Paysasa\Payments\Contracts\Reversible;
 use Paysasa\Payments\Contracts\WebhookHandler;
@@ -33,7 +34,7 @@ use Paysasa\Payments\ValueObjects\Money;
  * handleCallback() below — or, as a fallback, VerifyPaymentStatusJob
  * calling verify() through stkQuery.
  */
-class MpesaDriver extends AbstractDriver implements BalanceInquirable, PayoutCapable, Reversible, WebhookHandler
+class MpesaDriver extends AbstractDriver implements BalanceInquirable, ConfirmsCallbacks, PayoutCapable, Reversible, WebhookHandler
 {
     protected ?DarajaClient $client = null;
 
@@ -316,6 +317,23 @@ class MpesaDriver extends AbstractDriver implements BalanceInquirable, PayoutCap
             receiptNumber: $payload->get('TransID'),
             rawResponse: $payload->parsedBody,
         );
+    }
+
+    /**
+     * Daraja does not sign callbacks, so an STK "success" is confirmed with an
+     * STK query before it settles a payment (`confirm_callbacks`, on by default).
+     * Only STK callbacks (CheckoutRequestID `ws_CO_...`) can be queried this
+     * way; C2B confirmations carry a TransID instead.
+     */
+    public function shouldConfirmCallback(PaymentResponse $callback): bool
+    {
+        if (! (bool) ($this->config['confirm_callbacks'] ?? true)) {
+            return false;
+        }
+
+        return $callback->status === PaymentStatus::Successful
+            && is_string($callback->providerReference)
+            && str_starts_with($callback->providerReference, 'ws_CO_');
     }
 
     protected function securityCredential(): string

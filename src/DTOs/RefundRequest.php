@@ -12,6 +12,7 @@ final class RefundRequest
         public readonly ?float $amount = null,        // null = full refund
         public readonly ?string $reason = null,
         public readonly array $metadata = [],
+        public readonly ?string $currency = null,     // currency of the payment being refunded (sets the minor-unit exponent)
     ) {
     }
 }

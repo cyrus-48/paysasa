@@ -8,6 +8,7 @@ use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Paysasa\Payments\Contracts\PaymentDriver;
+use Paysasa\Payments\Enums\Currency;
 use Paysasa\Payments\Enums\PaymentProvider;
 use Paysasa\Payments\Exceptions\InvalidConfigurationException;
 use Paysasa\Payments\Exceptions\ProviderApiException;
@@ -51,6 +52,29 @@ abstract class AbstractDriver implements PaymentDriver
         if ($missing !== []) {
             throw InvalidConfigurationException::missingKeys($this->provider()->value, $missing);
         }
+    }
+
+    /**
+     * Convert a provider's minor-unit integer to major units using the real
+     * currency exponent (a hard-coded `/ 100` is wrong for zero-decimal
+     * currencies such as RWF). Currencies outside the Currency enum are
+     * treated as two-decimal, which holds for every other currency these
+     * gateways settle in.
+     */
+    protected function toMajor(int|float $minor, ?string $currency): float
+    {
+        return $this->currencyFor($currency)->fromMinorUnits((int) round($minor));
+    }
+
+    /** Inverse of toMajor(): major units to the provider's minor-unit integer. */
+    protected function toMinor(float $major, ?string $currency): int
+    {
+        return $this->currencyFor($currency)->toMinorUnits($major);
+    }
+
+    private function currencyFor(?string $code): Currency
+    {
+        return Currency::tryFrom(strtoupper((string) $code)) ?? Currency::KES;
     }
 
     protected function isSandbox(): bool

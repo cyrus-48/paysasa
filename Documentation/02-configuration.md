@@ -86,6 +86,9 @@ Daraja does not sign its callbacks. In `production`, M-Pesa webhooks are rejecte
 | `rate_limiting.webhooks.enabled` | `PAYSASA_WEBHOOK_RATE_LIMIT_ENABLED` | `true` |
 | `rate_limiting.webhooks.max_attempts` | `PAYSASA_WEBHOOK_RATE_LIMIT_MAX` | `120` |
 | `rate_limiting.webhooks.decay_seconds` | `PAYSASA_WEBHOOK_RATE_LIMIT_DECAY` | `60` |
+| `rate_limiting.webhooks.trusted_ips` | `PAYSASA_WEBHOOK_TRUSTED_IPS` (comma-separated) | _none_ |
+
+IPs in `trusted_ips` and the M-Pesa `webhook_ip_allowlist` are never throttled — Safaricom delivers every merchant's callbacks from a few shared IPs, and throttling them would drop real payment callbacks.
 
 ## Fraud checks
 
@@ -112,6 +115,9 @@ Each listed class must implement `Paysasa\Payments\Contracts\FraudCheck`. Run in
 | `stk_callback_url` | `MPESA_STK_CALLBACK_URL` |
 | `c2b_validation_url`, `c2b_confirmation_url` | `MPESA_C2B_*` |
 | `webhook_ip_allowlist` | `MPESA_WEBHOOK_IP_ALLOWLIST` (comma-separated) |
+| `confirm_callbacks` (default `true`) | `MPESA_CONFIRM_CALLBACKS` |
+
+Daraja callbacks are unsigned, so with `confirm_callbacks` on, an STK **success** callback is confirmed with an STK query before the payment is settled. If Daraja says the payment did not succeed, the provider's answer wins; if it cannot confirm yet, the job retries and the reconcile sweep is the backstop.
 
 ### `drivers.airtel`
 

@@ -61,16 +61,18 @@ class ProcessRefund
         [$refund, $alreadyReservedMinor] = $this->reserve($payment, $requestedMinor, $request->reason);
 
         // When earlier refunds exist, "full refund" (a null amount) must mean
-        // "the remaining balance", not the whole original charge.
-        if ($request->amount === null && $alreadyReservedMinor > 0) {
-            $request = new RefundRequest(
-                transactionId: $request->transactionId,
-                providerReference: $request->providerReference,
-                amount: $currency->fromMinorUnits((int) $refund->getAttribute('amount_minor')),
-                reason: $request->reason,
-                metadata: $request->metadata,
-            );
-        }
+        // "the remaining balance", not the whole original charge. The payment's
+        // currency is always passed along so drivers use the right exponent.
+        $request = new RefundRequest(
+            transactionId: $request->transactionId,
+            providerReference: $request->providerReference,
+            amount: $request->amount === null && $alreadyReservedMinor > 0
+                ? $currency->fromMinorUnits((int) $refund->getAttribute('amount_minor'))
+                : $request->amount,
+            reason: $request->reason,
+            metadata: $request->metadata,
+            currency: $request->currency ?? $currency->value,
+        );
 
         try {
             $response = $driver->refund($request);
