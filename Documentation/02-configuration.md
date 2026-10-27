@@ -58,6 +58,27 @@ See [`08-security.md#idempotency`](08-security.md#idempotency) for the semantics
 | `logging.log_raw_payloads` | `PAYSASA_LOG_RAW_PAYLOADS` | `true` |
 | `logging.redact_fields` | — (array) | `pin, password, card_number, cvv, account_number, authorization_code` |
 
+## Webhooks
+
+| Key | Env var | Default | Purpose |
+|---|---|---|---|
+| `webhooks.max_body_bytes` | `PAYSASA_WEBHOOK_MAX_BODY_BYTES` | `65536` | Larger requests are rejected with `413` before anything is stored. |
+| `webhook_aliases` | `PAYSASA_MPESA_WEBHOOK_ALIAS` | none | Map a random slug to a provider (e.g. `['k3j9x2a7' => 'mpesa']`) and register `{prefix}/k3j9x2a7` with Safaricom. |
+| `drivers.mpesa.webhook_ip_allowlist` | `MPESA_WEBHOOK_IP_ALLOWLIST` | none | Comma-separated Safaricom source IPs. |
+
+Daraja does not sign its callbacks. In `production`, M-Pesa webhooks are rejected unless they arrive on an opaque alias **or** an IP allowlist is configured. Generate a slug with `php -r "echo bin2hex(random_bytes(12));"`.
+
+## Pending payments and reconciliation
+
+| Key | Env var | Default | Purpose |
+|---|---|---|---|
+| `pending_ttl_minutes` | `PAYSASA_PENDING_TTL_MINUTES` | `60` | How long a payment may stay `pending`/`processing` before it is expired (after one last check with the provider). |
+| `drivers.mpesa.pending_ttl_minutes` | `MPESA_PENDING_TTL_MINUTES` | `15` | Per-provider override. Any `drivers.{provider}.pending_ttl_minutes` works. |
+| `drivers.mpesa.initial_verify_delay` | `MPESA_INITIAL_VERIFY_DELAY` | `45` | Seconds before the first status check of a pending STK push. |
+| `schedule.enabled` | `PAYSASA_SCHEDULE_ENABLED` | `true` | Register `paysasa:reconcile` (every minute, without overlapping) in the host app's scheduler. Set `false` if you schedule it yourself. |
+
+`paysasa:reconcile` backs off for payments that stay unresolved: every minute for the first 5 checks, every 5 minutes up to 15 checks, then every 15 minutes. A payment is always checked with the provider **before** it is expired, so a customer who paid just before the deadline is settled, not expired.
+
 ## Rate limiting
 
 | Key | Env var | Default |
@@ -112,13 +133,13 @@ Each listed class must implement `Paysasa\Payments\Contracts\FraudCheck`. Run in
 
 `public_key`, `secret_key`, `base_url`.
 
-### `drivers.google_pay` / `drivers.apple_pay`
+### Google Pay / Apple Pay
 
-`gateway` (which card driver actually settles the transaction — default `stripe`), plus provider-issued merchant identifiers. These are **not** independent settlement rails — see [`04-architecture.md#wallets-are-adapters-not-rails`](04-architecture.md#wallets-are-adapters-not-rails).
+There is no wallet driver. Google Pay and Apple Pay are client-side tokenization layers over the card networks: your frontend exchanges the wallet credential for a processor payment-method token, and you charge it through a card driver such as `stripe`. See [`04-architecture.md`](04-architecture.md#digital-wallets-google-pay--apple-pay).
 
-### `drivers.pesalink` / `eft` / `rtgs` / `virtual_account`
+### `drivers.pesalink` (experimental)
 
-`api_key`, `bank_code`, `base_urls.sandbox` / `base_urls.production`, `webhook_secret`. These have no single public API standard — configure them against your acquiring bank's actual endpoint. See [`06-driver-development-guide.md`](06-driver-development-guide.md).
+`institution_code`, `api_key`, `api_secret`, `webhook_secret`, `base_urls.sandbox` / `base_urls.production`. Kenyan bank rails have no single public API standard — configure this against your acquiring bank's actual endpoint, or extend `AbstractBankingDriver` for a specific bank. See [`06-driver-development-guide.md`](06-driver-development-guide.md).
 
 ## Multi-merchant overrides
 

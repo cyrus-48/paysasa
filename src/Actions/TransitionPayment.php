@@ -7,8 +7,10 @@ namespace Paysasa\Payments\Actions;
 use Illuminate\Support\Facades\DB;
 use Paysasa\Payments\Contracts\PaymentRepository;
 use Paysasa\Payments\DTOs\PaymentResponse;
+use Paysasa\Payments\DTOs\RefundResponse;
 use Paysasa\Payments\DTOs\TransitionResult;
 use Paysasa\Payments\Enums\PaymentStatus;
+use Paysasa\Payments\Enums\RefundStatus;
 use Paysasa\Payments\Events\PaymentAuthorized;
 use Paysasa\Payments\Events\PaymentCancelled;
 use Paysasa\Payments\Events\PaymentExpired;
@@ -69,9 +71,16 @@ final class TransitionPayment
             PaymentStatus::Cancelled => event(new PaymentCancelled($payment, $response)),
             PaymentStatus::Expired => event(new PaymentExpired($payment, $response)),
             PaymentStatus::Authorized => event(new PaymentAuthorized($payment, $response)),
-            PaymentStatus::Processing => event(new PaymentProcessing($payment, $response)),
-            PaymentStatus::Refunded, PaymentStatus::PartiallyRefunded => event(new PaymentRefunded($payment)),
-            PaymentStatus::Reversed => event(new PaymentReversed($payment)),
+            PaymentStatus::Processing => event(new PaymentProcessing($payment)),
+            PaymentStatus::Refunded, PaymentStatus::PartiallyRefunded => event(new PaymentRefunded($payment, new RefundResponse(
+                provider: $response->provider,
+                status: RefundStatus::Completed,
+                providerReference: $response->providerReference,
+                amount: $response->amount,
+                message: $response->message,
+                rawResponse: $response->rawResponse,
+            ))),
+            PaymentStatus::Reversed => event(new PaymentReversed($payment, $response)),
             default => null,
         };
     }

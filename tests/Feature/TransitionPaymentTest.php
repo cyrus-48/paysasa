@@ -10,6 +10,8 @@ use Paysasa\Payments\Enums\PaymentProvider;
 use Paysasa\Payments\Enums\PaymentStatus;
 use Paysasa\Payments\Events\PaymentExpired;
 use Paysasa\Payments\Events\PaymentFailed;
+use Paysasa\Payments\Events\PaymentRefunded;
+use Paysasa\Payments\Events\PaymentReversed;
 use Paysasa\Payments\Events\PaymentStateConflict;
 use Paysasa\Payments\Events\PaymentSuccessful;
 use Paysasa\Payments\Models\Payment;
@@ -111,4 +113,46 @@ it('is idempotent for identical status transitions and fires no duplicate events
         ->and($result->conflict)->toBeFalse();
 
     Event::assertNotDispatched(PaymentSuccessful::class);
+});
+
+it('fires PaymentRefunded with a RefundResponse when a payment transitions to Refunded', function () {
+    Event::fake([PaymentRefunded::class]);
+
+    $payment = Payment::create([
+        'provider' => PaymentProvider::Stripe,
+        'category' => PaymentProvider::Stripe->category(),
+        'reference' => 'TX_TRANS_REFUND',
+        'status' => PaymentStatus::Successful,
+        'amount_minor' => 10000,
+    ]);
+
+    $response = new PaymentResponse(PaymentProvider::Stripe, PaymentStatus::Refunded, providerReference: 're_1', amount: 100.0, currency: 'KES');
+
+    $result = app(TransitionPayment::class)($payment, $response, 'webhook');
+
+    expect($result->changed)->toBeTrue();
+    expect($payment->refresh()->status)->toBe(PaymentStatus::Refunded);
+
+    Event::assertDispatched(PaymentRefunded::class, fn (PaymentRefunded $e) => $e->payment->is($payment) && $e->response->successful());
+});
+
+it('fires PaymentReversed with the response when a payment transitions to Reversed', function () {
+    Event::fake([PaymentReversed::class]);
+
+    $payment = Payment::create([
+        'provider' => PaymentProvider::Mpesa,
+        'category' => PaymentProvider::Mpesa->category(),
+        'reference' => 'TX_TRANS_REVERSE',
+        'status' => PaymentStatus::Successful,
+        'amount_minor' => 10000,
+    ]);
+
+    $response = new PaymentResponse(PaymentProvider::Mpesa, PaymentStatus::Reversed, providerReference: 'REV_1');
+
+    $result = app(TransitionPayment::class)($payment, $response, 'webhook');
+
+    expect($result->changed)->toBeTrue();
+    expect($payment->refresh()->status)->toBe(PaymentStatus::Reversed);
+
+    Event::assertDispatched(PaymentReversed::class, fn (PaymentReversed $e) => $e->payment->is($payment) && $e->response->providerReference === 'REV_1');
 });

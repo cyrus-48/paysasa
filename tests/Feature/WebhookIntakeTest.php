@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Paysasa\Payments\DTOs\WebhookPayload;
 use Paysasa\Payments\Enums\PaymentProvider;
 use Paysasa\Payments\Enums\PaymentStatus;
 use Paysasa\Payments\Enums\WebhookStatus;
 use Paysasa\Payments\Events\PaymentAmountMismatch;
+use Paysasa\Payments\Events\PaymentSuccessful;
 use Paysasa\Payments\Events\WebhookUnmatched;
 use Paysasa\Payments\Exceptions\WebhookVerificationException;
 use Paysasa\Payments\Jobs\DispatchWebhookJob;
@@ -155,4 +157,119 @@ it('dispatches WebhookUnmatched event when payment matching exhausts retries', f
     expect($webhook->status)->toBe(WebhookStatus::Unmatched);
 
     Event::assertDispatched(WebhookUnmatched::class, 1);
+});
+
+function runWebhookJob(Webhook $webhook, array $callback): void
+{
+    (new DispatchWebhookJob($webhook, [], (string) json_encode($callback)))->handle(
+        app(\Paysasa\Payments\Managers\PaymentManager::class),
+        app(\Paysasa\Payments\Contracts\PaymentRepository::class),
+        app(\Paysasa\Payments\Actions\TransitionPayment::class)
+    );
+}
+
+function stkCallback(string $checkoutRequestId, int|float $amount, int $resultCode = 0): array
+{
+    return ['Body' => ['stkCallback' => [
+        'CheckoutRequestID' => $checkoutRequestId,
+        'ResultCode' => $resultCode,
+        'CallbackMetadata' => ['Item' => [
+            ['Name' => 'Amount', 'Value' => $amount],
+            ['Name' => 'MpesaReceiptNumber', 'Value' => 'REC_OK_1'],
+        ]],
+    ]]];
+}
+
+it('settles the payment and fires PaymentSuccessful once when a matching STK callback is processed', function () {
+    Event::fake([PaymentSuccessful::class]);
+
+    $payment = Payment::create([
+        'provider' => PaymentProvider::Mpesa,
+        'category' => PaymentProvider::Mpesa->category(),
+        'reference' => 'TX_E2E_OK',
+        'provider_reference' => 'ws_CO_E2E_OK',
+        'status' => PaymentStatus::Pending,
+        'amount_minor' => 50000, // 500.00 KES
+    ]);
+
+    $callback = stkCallback('ws_CO_E2E_OK', 500);
+    $webhook = Webhook::create(['provider' => 'mpesa', 'status' => WebhookStatus::Received, 'payload' => $callback]);
+
+    runWebhookJob($webhook, $callback);
+
+    $payment->refresh();
+    expect($payment->status)->toBe(PaymentStatus::Successful)
+        ->and($payment->receipt_number)->toBe('REC_OK_1');
+
+    expect($webhook->refresh()->status)->toBe(WebhookStatus::Processed);
+
+    Event::assertDispatched(PaymentSuccessful::class, 1);
+});
+
+it('does not downgrade an already-successful payment when a mismatching callback arrives', function () {
+    Event::fake([PaymentAmountMismatch::class]);
+
+    $payment = Payment::create([
+        'provider' => PaymentProvider::Mpesa,
+        'category' => PaymentProvider::Mpesa->category(),
+        'reference' => 'TX_NO_DOWNGRADE',
+        'provider_reference' => 'ws_CO_NO_DOWNGRADE',
+        'status' => PaymentStatus::Successful,
+        'amount_minor' => 50000,
+    ]);
+
+    $callback = stkCallback('ws_CO_NO_DOWNGRADE', 400); // does not match the 500.00 charged
+    $webhook = Webhook::create(['provider' => 'mpesa', 'status' => WebhookStatus::Received, 'payload' => $callback]);
+
+    runWebhookJob($webhook, $callback);
+
+    $payment->refresh();
+    expect($payment->status)->toBe(PaymentStatus::Successful)
+        ->and($payment->flags['amount_mismatch'] ?? false)->toBeTrue();
+
+    Event::assertDispatched(PaymentAmountMismatch::class, fn (PaymentAmountMismatch $e) => $e->expectedMinor === 50000 && $e->receivedMinor === 40000);
+});
+
+it('does not treat a failed callback as an amount mismatch', function () {
+    Event::fake([PaymentAmountMismatch::class]);
+
+    $payment = Payment::create([
+        'provider' => PaymentProvider::Mpesa,
+        'category' => PaymentProvider::Mpesa->category(),
+        'reference' => 'TX_FAILED_CB',
+        'provider_reference' => 'ws_CO_FAILED_CB',
+        'status' => PaymentStatus::Pending,
+        'amount_minor' => 50000,
+    ]);
+
+    $callback = ['Body' => ['stkCallback' => ['CheckoutRequestID' => 'ws_CO_FAILED_CB', 'ResultCode' => 1, 'ResultDesc' => 'Insufficient funds']]];
+    $webhook = Webhook::create(['provider' => 'mpesa', 'status' => WebhookStatus::Received, 'payload' => $callback]);
+
+    runWebhookJob($webhook, $callback);
+
+    expect($payment->refresh()->status)->toBe(PaymentStatus::Failed);
+
+    Event::assertNotDispatched(PaymentAmountMismatch::class);
+});
+
+it('marks the webhook failed with the error when the job exhausts its retries', function () {
+    $webhook = Webhook::create(['provider' => 'mpesa', 'status' => WebhookStatus::Received, 'payload' => []]);
+
+    (new DispatchWebhookJob($webhook, [], '{}'))->failed(new RuntimeException('callback exploded'));
+
+    $webhook->refresh();
+    expect($webhook->status)->toBe(WebhookStatus::Failed)
+        ->and($webhook->error_message)->toBe('callback exploded');
+});
+
+it('accepts M-Pesa callbacks on an opaque alias route containing digits', function () {
+    Bus::fake();
+    config()->set('paysasa.webhook_aliases', ['k3j9x2a7' => 'mpesa']);
+
+    $this->postJson('/paysasa/webhooks/k3j9x2a7', stkCallback('ws_CO_ALIAS', 100))->assertStatus(200);
+
+    // Stored against the real provider, not the secret slug.
+    expect(Webhook::where('provider', 'mpesa')->exists())->toBeTrue();
+
+    Bus::assertDispatched(DispatchWebhookJob::class);
 });

@@ -7,6 +7,7 @@ namespace Paysasa\Payments\Support;
 use Paysasa\Payments\Contracts\PaymentRepository;
 use Paysasa\Payments\DTOs\ChargeRequest;
 use Paysasa\Payments\DTOs\PaymentResponse;
+use Paysasa\Payments\Enums\PaymentProvider;
 use Paysasa\Payments\Enums\PaymentStatus;
 use Paysasa\Payments\Enums\TransactionType;
 use Paysasa\Payments\Models\Payment;
@@ -43,7 +44,27 @@ class EloquentPaymentRepository implements PaymentRepository
             'splits' => $request->splits ?: null,
             'callback_url' => $request->callbackUrl,
             'initiated_at' => now(),
+            'expires_at' => $this->expiryFor($request->provider),
         ]);
+    }
+
+    /**
+     * When a payment still awaiting its outcome should be given up on. Without
+     * an expiry, an abandoned checkout would be re-verified by the reconcile
+     * sweep forever. Override per provider via
+     * `paysasa.drivers.{provider}.pending_ttl_minutes`.
+     */
+    protected function expiryFor(PaymentProvider $provider): \DateTimeInterface
+    {
+        // `??` (not config()'s default argument) so an explicit null — e.g. an
+        // unset env() in a published config — still falls back to the global TTL.
+        $minutes = (int) (
+            config("paysasa.drivers.{$provider->value}.pending_ttl_minutes")
+            ?? config('paysasa.pending_ttl_minutes')
+            ?? 60
+        );
+
+        return now()->addMinutes(max(1, $minutes));
     }
 
     public function recordAttempt(Payment $payment, PaymentResponse $response, ?\Throwable $exception = null): void

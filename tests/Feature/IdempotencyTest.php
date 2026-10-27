@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Paysasa\Payments\DTOs\ChargeRequest;
+use Paysasa\Payments\Enums\Currency;
+use Paysasa\Payments\Enums\PaymentProvider;
 use Paysasa\Payments\Exceptions\IdempotencyConflictException;
 use Paysasa\Payments\Facades\Payment;
 use Paysasa\Payments\Jobs\VerifyPaymentStatusJob;
+use Paysasa\Payments\Support\IdempotencyManager;
 
 beforeEach(function () {
     Queue::fake([VerifyPaymentStatusJob::class]);
@@ -35,3 +39,49 @@ it('throws when the same idempotency key is reused with a different payload', fu
 
     Payment::driver('mpesa')->amount(999)->phone('0700000000')->reference('INV-B')->idempotencyKey($key)->charge();
 })->throws(IdempotencyConflictException::class);
+
+it('propagates an exception from the charge callback and runs it exactly once', function () {
+    $request = new ChargeRequest(
+        provider: PaymentProvider::Mpesa,
+        amount: 500,
+        currency: Currency::KES,
+        phone: '0700000000',
+        reference: 'INV-THROW',
+        idempotencyKey: 'idem-key-throws',
+    );
+
+    $calls = 0;
+
+    // A callback that fails must surface its own error. Re-running it would
+    // hide the failure (and could double-charge), so it must be invoked once.
+    expect(fn () => app(IdempotencyManager::class)->remember($request, function () use (&$calls) {
+        $calls++;
+
+        throw new RuntimeException('provider exploded');
+    }))->toThrow(RuntimeException::class, 'provider exploded');
+
+    expect($calls)->toBe(1);
+});
+
+it('releases the lock after the callback throws so a retry can proceed', function () {
+    $request = new ChargeRequest(
+        provider: PaymentProvider::Mpesa,
+        amount: 500,
+        currency: Currency::KES,
+        phone: '0700000000',
+        reference: 'INV-RETRY',
+        idempotencyKey: 'idem-key-retry',
+    );
+
+    $manager = app(IdempotencyManager::class);
+
+    try {
+        $manager->remember($request, fn () => throw new RuntimeException('first attempt fails'));
+    } catch (RuntimeException) {
+        // expected
+    }
+
+    $second = $manager->remember($request, fn () => \Paysasa\Payments\DTOs\PaymentResponse::makePending(PaymentProvider::Mpesa, null, 'ws_CO_retry'));
+
+    expect($second->providerReference())->toBe('ws_CO_retry');
+});

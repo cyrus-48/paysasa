@@ -23,6 +23,9 @@ use Paysasa\Payments\Middleware\ThrottleWebhooks;
 
 Route::middleware([ThrottleWebhooks::class])->group(function () {
     Route::match(['get', 'post'], '/{provider}', [WebhookController::class, 'handle'])
-        ->where('provider', '[a-z_]+')
+        // Provider names are lowercase letters/underscores, but opaque
+        // callback aliases (config('paysasa.webhook_aliases')) are random
+        // slugs, so digits, uppercase and hyphens must be routable too.
+        ->where('provider', '[A-Za-z0-9_-]+')
         ->name('paysasa.webhooks.handle');
 });
