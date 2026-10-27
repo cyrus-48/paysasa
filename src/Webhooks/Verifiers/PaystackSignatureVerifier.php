@@ -17,6 +17,10 @@ class PaystackSignatureVerifier implements SignatureVerifier
 
     public function verify(WebhookPayload $payload): void
     {
+        if ($this->secretKey === '') {
+            throw WebhookVerificationException::missingSecret('paystack');
+        }
+
         $signature = $payload->headers['x-paystack-signature'][0] ?? null;
 
         if ($signature === null) {

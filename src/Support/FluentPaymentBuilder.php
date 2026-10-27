@@ -199,12 +199,22 @@ class FluentPaymentBuilder implements PaymentBuilder
             throw UnsupportedOperationException::make($this->driver->provider()->value, 'refund');
         }
 
-        $payment = app(\Paysasa\Payments\Contracts\PaymentRepository::class)->findByReference($transactionId)
-            ?? app(\Paysasa\Payments\Contracts\PaymentRepository::class)->findByProviderReference($providerReference ?? $transactionId);
+        $repository = app(\Paysasa\Payments\Contracts\PaymentRepository::class);
+
+        // PaymentResponse::$transactionId is the payment's uuid, so that is the
+        // id callers will normally pass; also accept the merchant reference and
+        // the provider's reference.
+        $payment = \Paysasa\Payments\Models\Payment::query()->where('uuid', $transactionId)->first()
+            ?? $repository->findByReference($transactionId)
+            ?? $repository->findByProviderReference($providerReference ?? $transactionId);
+
+        if ($payment === null) {
+            throw \Paysasa\Payments\Exceptions\PaymentNotRefundableException::notFound($transactionId);
+        }
 
         $request = new RefundRequest(
             transactionId: $transactionId,
-            providerReference: $providerReference ?? $payment?->provider_reference,
+            providerReference: $providerReference ?? $payment->provider_reference,
             amount: $this->amount ?: null,
             reason: $reason,
         );
