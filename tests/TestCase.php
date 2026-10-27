@@ -29,6 +29,8 @@ abstract class TestCase extends Orchestra
         $app['config']->set('paysasa.drivers.mpesa.passkey', 'test-passkey');
         $app['config']->set('paysasa.drivers.mpesa.stk_callback_url', 'https://example.test/paysasa/webhooks/mpesa');
 
+        // Callback confirmation has its own tests; the rest of the suite feeds raw callbacks to the job.
+        $app['config']->set('paysasa.drivers.mpesa.confirm_callbacks', false);
         $app['config']->set('paysasa.drivers.stripe.secret_key', 'sk_test_fake');
         $app['config']->set('paysasa.drivers.stripe.webhook_secret', 'whsec_test_fake');
     }

@@ -101,7 +101,7 @@ class PaystackDriver extends AbstractDriver implements PayoutCapable, Refundable
         $params = ['transaction' => $request->providerReference];
 
         if ($request->amount !== null) {
-            $params['amount'] = (int) round($request->amount * 100);
+            $params['amount'] = $this->toMinor($request->amount, $request->currency);
         }
 
         $result = $this->client()->createRefund($params);
@@ -141,7 +141,7 @@ class PaystackDriver extends AbstractDriver implements PayoutCapable, Refundable
                 $this->provider(),
                 transactionId: null,
                 providerReference: $providerReference,
-                amount: isset($transaction['amount']) ? $transaction['amount'] / 100 : null,
+                amount: isset($transaction['amount']) ? $this->toMajor($transaction['amount'], $transaction['currency'] ?? null) : null,
                 currency: $transaction['currency'] ?? null,
                 receiptNumber: $transaction['reference'] ?? null,
                 rawResponse: $transaction,

@@ -160,6 +160,9 @@ return [
             'enabled' => env('PAYSASA_WEBHOOK_RATE_LIMIT_ENABLED', true),
             'max_attempts' => env('PAYSASA_WEBHOOK_RATE_LIMIT_MAX', 120),
             'decay_seconds' => env('PAYSASA_WEBHOOK_RATE_LIMIT_DECAY', 60),
+            // Extra source IPs never throttled (comma-separated). The M-Pesa webhook_ip_allowlist is always
+            // exempt: Safaricom delivers every merchant's callbacks from a handful of shared IPs.
+            'trusted_ips' => array_filter(explode(',', (string) env('PAYSASA_WEBHOOK_TRUSTED_IPS', ''))),
         ],
     ],
 
@@ -216,6 +219,9 @@ return [
             'allowed_callback_hosts' => array_filter(explode(',', (string) env('MPESA_ALLOWED_CALLBACK_HOSTS', ''))),
             // An STK prompt is answered (or times out) within minutes, so give up much sooner than the global default.
             'pending_ttl_minutes' => env('MPESA_PENDING_TTL_MINUTES', 15),
+            // Daraja callbacks are unsigned. When true (the default), an STK "success" callback is confirmed
+            // with an STK query before the payment is settled, so a forged callback cannot mark a payment paid.
+            'confirm_callbacks' => env('MPESA_CONFIRM_CALLBACKS', true),
             // Seconds to wait before the first status check of a pending STK push (the callback usually wins).
             'initial_verify_delay' => env('MPESA_INITIAL_VERIFY_DELAY', 45),
             'base_urls' => [

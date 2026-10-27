@@ -11,6 +11,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Paysasa\Payments\Actions\TransitionPayment;
+use Paysasa\Payments\Contracts\ConfirmsCallbacks;
 use Paysasa\Payments\Contracts\PaymentRepository;
 use Paysasa\Payments\Contracts\WebhookHandler;
 use Paysasa\Payments\DTOs\WebhookPayload;
@@ -112,6 +113,42 @@ class DispatchWebhookJob implements ShouldQueue
         assert($payment instanceof Payment);
 
         $this->webhook->payment_id ??= $payment->id;
+
+        // Unsigned callbacks (Daraja) are never trusted on their own: a claimed
+        // success must be confirmed with the provider before it settles anything.
+        if ($driver instanceof ConfirmsCallbacks && $driver->shouldConfirmCallback($response)) {
+            // A transport/API error here propagates: the queue retries the job
+            // with backoff, and failed() records the webhook if it never succeeds.
+            $confirmed = $driver->verify((string) $response->providerReference);
+
+            if ($confirmed->status !== PaymentStatus::Successful) {
+                if (! $confirmed->status->isTerminal()) {
+                    // The provider cannot confirm yet (still processing): try again
+                    // shortly, and leave it to the reconcile sweep if it never does.
+                    if ($this->attempts() < $this->tries) {
+                        $this->release($this->backoff[$this->attempts() - 1] ?? 60);
+
+                        return;
+                    }
+
+                    $this->webhook->update([
+                        'status' => WebhookStatus::Failed,
+                        'error_message' => 'Success callback could not be confirmed with the provider.',
+                    ]);
+
+                    return;
+                }
+
+                // The provider says the payment did not succeed although the
+                // callback claimed it did: the provider is the authority.
+                $this->webhook->error_message = mb_substr(
+                    "Callback claimed success but the provider reports [{$confirmed->status->value}].",
+                    0,
+                    500,
+                );
+                $response = $confirmed;
+            }
+        }
 
         // Amount reconciliation: a success callback that reports a different
         // amount than we charged must not settle the payment. Compare in minor

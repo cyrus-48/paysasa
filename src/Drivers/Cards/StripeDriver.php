@@ -13,7 +13,6 @@ use Paysasa\Payments\DTOs\RefundRequest;
 use Paysasa\Payments\DTOs\RefundResponse;
 use Paysasa\Payments\DTOs\WebhookPayload;
 use Paysasa\Payments\Drivers\AbstractDriver;
-use Paysasa\Payments\Enums\Currency;
 use Paysasa\Payments\Enums\PaymentProvider;
 use Paysasa\Payments\Enums\RefundStatus;
 use Paysasa\Payments\Exceptions\InvalidConfigurationException;
@@ -84,7 +83,11 @@ class StripeDriver extends AbstractDriver implements Authorizable, Refundable, W
 
     public function capture(string $providerReference, ?float $amount = null): PaymentResponse
     {
-        $amountMinor = $amount !== null ? Currency::KES->toMinorUnits($amount) : null;
+        // capture() has no currency argument, so read it from the intent when a
+        // partial amount is given (the exponent differs per currency).
+        $amountMinor = $amount !== null
+            ? $this->toMinor($amount, $this->client()->retrievePaymentIntent($providerReference)['currency'] ?? null)
+            : null;
         $result = $this->client()->capturePaymentIntent($providerReference, $amountMinor);
 
         return $this->responseFromIntent($result);
@@ -109,7 +112,7 @@ class StripeDriver extends AbstractDriver implements Authorizable, Refundable, W
         $params = ['payment_intent' => $request->providerReference];
 
         if ($request->amount !== null) {
-            $params['amount'] = Currency::KES->toMinorUnits($request->amount);
+            $params['amount'] = $this->toMinor($request->amount, $request->currency);
         }
 
         if ($request->reason) {
@@ -123,7 +126,7 @@ class StripeDriver extends AbstractDriver implements Authorizable, Refundable, W
             $result['status'] === 'succeeded' ? RefundStatus::Completed : RefundStatus::Processing,
             refundId: $result['id'] ?? null,
             providerReference: $result['payment_intent'] ?? null,
-            amount: isset($result['amount']) ? $result['amount'] / 100 : null,
+            amount: isset($result['amount']) ? $this->toMajor($result['amount'], $result['currency'] ?? $request->currency) : null,
             rawResponse: $result,
         );
     }
@@ -138,7 +141,7 @@ class StripeDriver extends AbstractDriver implements Authorizable, Refundable, W
     protected function responseFromIntent(array $intent, ?string $eventType = null): PaymentResponse
     {
         $status = $intent['status'] ?? null;
-        $amount = isset($intent['amount']) ? $intent['amount'] / 100 : null;
+        $amount = isset($intent['amount']) ? $this->toMajor($intent['amount'], $intent['currency'] ?? null) : null;
 
         return match ($status) {
             'succeeded' => PaymentResponse::makeSuccessful(
