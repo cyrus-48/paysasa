@@ -50,6 +50,55 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Opaque Webhook Aliases
+    |--------------------------------------------------------------------------
+    |
+    | Daraja does not sign its callbacks, so the strongest protection (besides
+    | an IP allowlist) is an unguessable callback URL. Map a random slug to a
+    | provider and register {prefix}/{slug} with Safaricom instead of
+    | {prefix}/mpesa. In production, M-Pesa webhooks are rejected unless they
+    | arrive on an alias or an IP allowlist is configured.
+    |
+    | Generate a slug with e.g. `php -r "echo bin2hex(random_bytes(12));"`.
+    |
+    */
+    'webhook_aliases' => env('PAYSASA_MPESA_WEBHOOK_ALIAS')
+        ? [env('PAYSASA_MPESA_WEBHOOK_ALIAS') => 'mpesa']
+        : [],
+
+    'webhooks' => [
+        // Requests larger than this are rejected with 413 before anything is stored.
+        'max_body_bytes' => env('PAYSASA_WEBHOOK_MAX_BODY_BYTES', 65536),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Pending Payment Expiry
+    |--------------------------------------------------------------------------
+    |
+    | How long a payment may stay Pending/Processing before the reconcile sweep
+    | gives up and marks it Expired (after one last check with the provider).
+    | Override per provider with drivers.{provider}.pending_ttl_minutes.
+    |
+    */
+    'pending_ttl_minutes' => env('PAYSASA_PENDING_TTL_MINUTES', 60),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Scheduler
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, the package registers `paysasa:reconcile` to run every
+    | minute through the host app's scheduler. Disable it if you schedule the
+    | command yourself.
+    |
+    */
+    'schedule' => [
+        'enabled' => env('PAYSASA_SCHEDULE_ENABLED', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Idempotency
     |--------------------------------------------------------------------------
     */
@@ -165,6 +214,10 @@ return [
             'webhook_ip_allowlist' => array_filter(explode(',', (string) env('MPESA_WEBHOOK_IP_ALLOWLIST', ''))),
             // Host allowlist when request overrides callback URL
             'allowed_callback_hosts' => array_filter(explode(',', (string) env('MPESA_ALLOWED_CALLBACK_HOSTS', ''))),
+            // An STK prompt is answered (or times out) within minutes, so give up much sooner than the global default.
+            'pending_ttl_minutes' => env('MPESA_PENDING_TTL_MINUTES', 15),
+            // Seconds to wait before the first status check of a pending STK push (the callback usually wins).
+            'initial_verify_delay' => env('MPESA_INITIAL_VERIFY_DELAY', 45),
             'base_urls' => [
                 'sandbox' => 'https://sandbox.safaricom.co.ke',
                 'production' => 'https://api.safaricom.co.ke',

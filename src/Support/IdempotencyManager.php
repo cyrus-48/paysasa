@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Paysasa\Payments\Support;
 
+use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Cache;
@@ -55,7 +56,6 @@ class IdempotencyManager
         $fingerprint = $request->fingerprint();
         $lockKey = "paysasa:idem:lock:{$request->idempotencyKey}";
 
-        $store = $this->store();
         $runner = function () use ($request, $key, $fingerprint, $callback) {
             $cached = $this->store()->get($key);
 
@@ -104,14 +104,45 @@ class IdempotencyManager
             return $response;
         };
 
-        if (method_exists($store, 'lock') || $store->getStore() instanceof LockProvider) {
-            try {
-                return $store->lock($lockKey, 30)->block(5, $runner);
-            } catch (\Throwable) {
-                return $runner();
-            }
+        $lock = $this->acquireLock($lockKey);
+
+        // No lock available (store without lock support, lock timeout, or a
+        // cache outage): fall back to the database, which is the source of
+        // truth — the unique idempotency_key column stops a duplicate row.
+        if ($lock === null) {
+            return $runner();
         }
 
-        return $runner();
+        // Exceptions from $runner are the caller's to handle. They must NOT be
+        // swallowed and retried here: re-running a charge callback after it has
+        // already created a Payment row would hide the real error and return a
+        // "replayed" pending response for a payment that never reached the
+        // provider.
+        try {
+            return $runner();
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * Try to take the per-key lock. Returns null — never throws — when the
+     * lock cannot be acquired, so the caller can fall back to the DB check.
+     */
+    protected function acquireLock(string $lockKey): ?Lock
+    {
+        $cacheStore = $this->store()->getStore();
+
+        if (! $cacheStore instanceof LockProvider) {
+            return null;
+        }
+
+        try {
+            $lock = $cacheStore->lock($lockKey, 30);
+
+            return $lock->block(5) ? $lock : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

@@ -69,10 +69,8 @@ class InitiatePayment
                 );
 
                 $this->repository->recordAttempt($payment, $response, $e);
-                $payment->update([
-                    'outcome_uncertain' => true,
-                    'expires_at' => now()->addMinutes((int) config("paysasa.drivers.{$driver->provider()->value}.pending_ttl_minutes", 15)),
-                ]);
+                // expires_at was already set when the payment was created.
+                $payment->update(['outcome_uncertain' => true]);
 
                 return $response;
             } catch (ProviderApiException $e) {

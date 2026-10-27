@@ -9,10 +9,12 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Paysasa\Payments\Actions\TransitionPayment;
 use Paysasa\Payments\Contracts\PaymentRepository;
 use Paysasa\Payments\Contracts\WebhookHandler;
 use Paysasa\Payments\DTOs\WebhookPayload;
+use Paysasa\Payments\Enums\Currency;
 use Paysasa\Payments\Enums\PaymentStatus;
 use Paysasa\Payments\Enums\WebhookStatus;
 use Paysasa\Payments\Events\PaymentAmountMismatch;
@@ -111,30 +113,26 @@ class DispatchWebhookJob implements ShouldQueue
 
         $this->webhook->payment_id ??= $payment->id;
 
-        // Amount reconciliation check if amount is reported by callback
-        if ($response->amount !== null && abs($response->amount - $payment->amount) > 0.001) {
-            $flags = $payment->flags ?? [];
-            $flags['amount_mismatch'] = true;
-            $payment->update([
-                'flags' => $flags,
-                'status' => PaymentStatus::Processing,
-            ]);
+        // Amount reconciliation: a success callback that reports a different
+        // amount than we charged must not settle the payment. Compare in minor
+        // units so float rounding can never produce a false mismatch.
+        if ($response->status === PaymentStatus::Successful && $response->amount !== null) {
+            $currency = Currency::tryFrom((string) $payment->currency) ?? Currency::KES;
+            $expectedMinor = (int) $payment->amount_minor;
+            $receivedMinor = $currency->toMinorUnits($response->amount);
 
-            $currency = $payment->currency ? \Paysasa\Payments\Enums\Currency::tryFrom($payment->currency) ?? \Paysasa\Payments\Enums\Currency::KES : \Paysasa\Payments\Enums\Currency::KES;
-            event(new PaymentAmountMismatch(
-                $payment,
-                $currency->toMinorUnits((float) $payment->amount),
-                $currency->toMinorUnits((float) $response->amount)
-            ));
+            if ($expectedMinor !== $receivedMinor) {
+                $this->holdForAmountReview($payment, $expectedMinor, $receivedMinor);
 
-            $this->webhook->update([
-                'status' => WebhookStatus::Processed,
-                'processed_at' => now(),
-            ]);
+                $this->webhook->update([
+                    'status' => WebhookStatus::Processed,
+                    'processed_at' => now(),
+                ]);
 
-            event(new WebhookProcessed($this->webhook, $response));
+                event(new WebhookProcessed($this->webhook, $response));
 
-            return;
+                return;
+            }
         }
 
         $transition($payment, $response, 'webhook');
@@ -145,5 +143,46 @@ class DispatchWebhookJob implements ShouldQueue
         ]);
 
         event(new WebhookProcessed($this->webhook, $response));
+    }
+
+    /**
+     * Flag the payment for manual review and hold it in Processing.
+     *
+     * This runs under a row lock and never moves a payment out of a terminal
+     * state: a late, mismatching callback for an already-Successful (or
+     * Failed/Cancelled/...) payment is flagged and reported, but its status
+     * is left alone. Only a payment still awaiting its outcome is held.
+     */
+    private function holdForAmountReview(Payment $payment, int $expectedMinor, int $receivedMinor): void
+    {
+        DB::transaction(function () use ($payment) {
+            /** @var Payment $locked */
+            $locked = Payment::query()->lockForUpdate()->findOrFail($payment->id);
+
+            $flags = $locked->flags ?? [];
+            $flags['amount_mismatch'] = true;
+            $locked->flags = $flags;
+
+            if ($locked->status === PaymentStatus::Pending) {
+                $locked->status = PaymentStatus::Processing;
+            }
+
+            $locked->save();
+        });
+
+        event(new PaymentAmountMismatch($payment->refresh(), $expectedMinor, $receivedMinor));
+    }
+
+    /**
+     * Called by the queue once all retries are exhausted. Without this a
+     * webhook whose processing keeps throwing would sit in `received` forever
+     * with no trace of why.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        $this->webhook->update([
+            'status' => WebhookStatus::Failed,
+            'error_message' => mb_substr($exception->getMessage(), 0, 500),
+        ]);
     }
 }
