@@ -26,7 +26,11 @@ class HmacHeaderSignatureVerifier implements SignatureVerifier
 
     public function verify(WebhookPayload $payload): void
     {
-        $signature = $payload->headers[$this->header][0] ?? null;
+        if ($this->secret === '') {
+            throw WebhookVerificationException::missingSecret($this->provider);
+        }
+
+        $signature = $payload->headers[strtolower($this->header)][0] ?? null;
 
         if ($signature === null) {
             throw WebhookVerificationException::missingSignatureHeader($this->provider, $this->header);

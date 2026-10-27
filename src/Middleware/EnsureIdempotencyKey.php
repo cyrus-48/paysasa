@@ -19,7 +19,11 @@ class EnsureIdempotencyKey
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->isMethod('post') && ! $request->hasHeader('X-Idempotency-Key')) {
+        // Any state-changing method, and a non-blank value: `hasHeader()` alone
+        // accepts `X-Idempotency-Key:` with nothing in it, which protects nothing.
+        $key = $request->header('X-Idempotency-Key');
+
+        if (! $request->isMethodSafe() && (! is_string($key) || trim($key) === '')) {
             return response()->json([
                 'message' => 'The X-Idempotency-Key header is required for this request.',
             ], 422);

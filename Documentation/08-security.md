@@ -20,7 +20,7 @@ Covered in full in [`07-webhook-guide.md`](07-webhook-guide.md). Every inbound w
 
 ## Replay attack prevention
 
-Two independent layers, deliberately: Stripe's signature scheme includes a timestamp and this package rejects anything older than 5 minutes (`StripeSignatureVerifier`); separately, `WebhookController::isDuplicate()` fingerprint-dedupes any provider's payload regardless of whether that provider's own scheme has replay protection built in.
+Two independent layers, deliberately: Stripe's signature scheme includes a timestamp and this package rejects anything older than 5 minutes (`StripeSignatureVerifier`); separately, `WebhookController` de-duplicates any provider's payload (by event id, else a SHA-256 of the raw body, enforced by a unique `dedupe_key`) regardless of whether that provider's own scheme has replay protection built in.
 
 ## Request signing (outbound)
 

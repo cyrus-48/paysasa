@@ -22,17 +22,32 @@ class StripeSignatureVerifier implements SignatureVerifier
 
     public function verify(WebhookPayload $payload): void
     {
+        if ($this->webhookSecret === '') {
+            throw WebhookVerificationException::missingSecret('stripe');
+        }
+
         $header = $payload->headers['stripe-signature'][0] ?? $payload->headers['Stripe-Signature'][0] ?? null;
 
         if ($header === null) {
             throw WebhookVerificationException::missingSignatureHeader('stripe', 'Stripe-Signature');
         }
 
-        parse_str(str_replace(',', '&', $header), $parts);
-        $timestamp = $parts['t'] ?? null;
-        $signature = $parts['v1'] ?? null;
+        // The header can carry several v1 signatures while a webhook secret is
+        // being rolled, so collect them all (parse_str would keep only the last).
+        $timestamp = null;
+        $signatures = [];
 
-        if ($timestamp === null || $signature === null) {
+        foreach (explode(',', $header) as $part) {
+            [$key, $value] = array_pad(explode('=', trim($part), 2), 2, null);
+
+            if ($key === 't' && $value !== null) {
+                $timestamp = $value;
+            } elseif ($key === 'v1' && $value !== null && $value !== '') {
+                $signatures[] = $value;
+            }
+        }
+
+        if ($timestamp === null || $signatures === []) {
             throw WebhookVerificationException::invalidSignature('stripe');
         }
 
@@ -42,8 +57,12 @@ class StripeSignatureVerifier implements SignatureVerifier
 
         $expected = hash_hmac('sha256', "{$timestamp}.{$payload->rawBody}", $this->webhookSecret);
 
-        if (! hash_equals($expected, $signature)) {
-            throw WebhookVerificationException::invalidSignature('stripe');
+        foreach ($signatures as $signature) {
+            if (hash_equals($expected, $signature)) {
+                return;
+            }
         }
+
+        throw WebhookVerificationException::invalidSignature('stripe');
     }
 }

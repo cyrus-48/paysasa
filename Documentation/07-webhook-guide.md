@@ -27,6 +27,8 @@ The route accepts both `GET` and `POST` (Pesapal's IPN can be either, depending 
 | Pesapal | No signature; re-verifies server-to-server via `GetTransactionStatus` | `Verifiers\PesapalSignatureVerifier` |
 | Airtel / PesaLink | `HMAC-SHA256(body, webhook_secret)` in a configurable header | `Verifiers\HmacHeaderSignatureVerifier` |
 
+> **Secrets fail closed.** The Stripe, Paystack, Flutterwave and Airtel/PesaLink verifiers refuse every request while their secret is unset or empty (they throw `WebhookVerificationException::missingSecret()` and the endpoint answers `401`). This is deliberate: HMAC with an empty key is still a valid HMAC, so an unset secret would otherwise let anyone forge a "valid" webhook. Set `STRIPE_WEBHOOK_SECRET`, `PAYSTACK_SECRET_KEY`, `FLUTTERWAVE_WEBHOOK_SECRET_HASH`, `AIRTEL_WEBHOOK_SECRET` / `PESALINK_WEBHOOK_SECRET` for each provider you accept webhooks from.
+
 Every verifier throws `Exceptions\WebhookVerificationException` on failure, which `WebhookController` catches and turns into a `401` plus a `webhooks` row with `status = verification_failed` — **never** a silent drop, since that row is your evidence trail if you're ever investigating a spoofing attempt.
 
 ## M-Pesa C2B URL registration

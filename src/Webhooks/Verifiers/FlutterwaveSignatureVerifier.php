@@ -22,6 +22,12 @@ class FlutterwaveSignatureVerifier implements SignatureVerifier
 
     public function verify(WebhookPayload $payload): void
     {
+        // hash_equals('', '') is true: an unset secret plus an empty verif-hash
+        // header would otherwise be accepted.
+        if ($this->secretHash === '') {
+            throw WebhookVerificationException::missingSecret('flutterwave');
+        }
+
         $hash = $payload->headers['verif-hash'][0] ?? null;
 
         if ($hash === null) {

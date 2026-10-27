@@ -13,7 +13,11 @@ use Paysasa\Payments\DTOs\PaymentResponse;
 use Paysasa\Payments\Events\PaymentInitiated;
 use Paysasa\Payments\Events\PaymentProcessing;
 use Paysasa\Payments\Exceptions\FraudSuspectedException;
+use Paysasa\Payments\Exceptions\InvalidAmountException;
+use Paysasa\Payments\Exceptions\InvalidConfigurationException;
+use Paysasa\Payments\Exceptions\InvalidPhoneNumberException;
 use Paysasa\Payments\Exceptions\ProviderApiException;
+use Paysasa\Payments\Exceptions\UnsupportedOperationException;
 use Paysasa\Payments\Support\IdempotencyManager;
 use Paysasa\Payments\Support\PaymentLogger;
 
@@ -84,6 +88,18 @@ class InitiatePayment
                 ($this->transition)($payment, $response, 'sync');
 
                 return $response;
+            } catch (InvalidPhoneNumberException|InvalidAmountException|InvalidConfigurationException|UnsupportedOperationException $e) {
+                // Rejected by the driver before anything was sent to the provider.
+                // Close the payment out as Failed instead of leaving an orphaned
+                // Pending row (which an idempotent retry would otherwise "replay"
+                // as a pending payment that never existed at the provider), then
+                // let the caller see the real error. A failed attempt consumes
+                // its idempotency key: retry with a corrected request and a new key.
+                $response = PaymentResponse::makeFailed($request->provider, (string) $payment->uuid, $e->getMessage());
+                $this->repository->recordAttempt($payment, $response, $e);
+                ($this->transition)($payment, $response, 'sync');
+
+                throw $e;
             }
 
             $this->repository->recordAttempt($payment, $response);
