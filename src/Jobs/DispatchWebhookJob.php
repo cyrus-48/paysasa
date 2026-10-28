@@ -12,6 +12,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Paysasa\Payments\Actions\TransitionPayment;
 use Paysasa\Payments\Contracts\ConfirmsCallbacks;
+use Paysasa\Payments\Contracts\FiltersWebhookEvents;
 use Paysasa\Payments\Contracts\PaymentRepository;
 use Paysasa\Payments\Contracts\WebhookHandler;
 use Paysasa\Payments\DTOs\WebhookPayload;
@@ -64,6 +65,18 @@ class DispatchWebhookJob implements ShouldQueue
             rawBody: $this->rawBody,
             parsedBody: $this->webhook->payload,
         );
+
+        // Providers that post every event type to one URL: skip the ones this
+        // driver does not handle rather than failing on them.
+        if ($driver instanceof FiltersWebhookEvents && ! $driver->handlesWebhook($payload)) {
+            $this->webhook->update([
+                'status' => WebhookStatus::Ignored,
+                'error_message' => 'Event type is not handled by this driver.',
+                'processed_at' => now(),
+            ]);
+
+            return;
+        }
 
         $response = $driver->handleCallback($payload);
 

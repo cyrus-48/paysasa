@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Paystack promoted from Beta to Stable.** The driver now has a full test suite (charge, verify mapping, server-side callback re-verification, signed webhook end to end, event filtering, refunds) and the gaps that kept it in beta are closed:
+  - Paystack posts every event type to one URL; previously a `transfer.*` / `refund.*` event was re-verified as if it were a charge, failed, retried and ended up `failed`. New `Contracts\FiltersWebhookEvents` lets a driver declare which events it handles; others are stored as `ignored`. Paystack handles only `charge.success`.
+  - A `failed` refund is now reported as `failed` (it was reported as `processing`, so its reserved amount was never released).
+  - Initialization no longer sends nulls or an empty `metadata` list, and the placeholder checkout email is always a valid address even when `app.url` has no host.
+
 ## [0.9.1] - 2026-10-28
 
 ### Security

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Paysasa\Payments\Drivers\Cards;
 
+use Paysasa\Payments\Contracts\FiltersWebhookEvents;
 use Paysasa\Payments\Contracts\PayoutCapable;
 use Paysasa\Payments\Contracts\Refundable;
 use Paysasa\Payments\Contracts\WebhookHandler;
@@ -18,7 +19,7 @@ use Paysasa\Payments\Enums\RefundStatus;
 use Paysasa\Payments\Services\Paystack\PaystackClient;
 use Ramsey\Uuid\Uuid;
 
-class PaystackDriver extends AbstractDriver implements PayoutCapable, Refundable, WebhookHandler
+class PaystackDriver extends AbstractDriver implements FiltersWebhookEvents, PayoutCapable, Refundable, WebhookHandler
 {
     protected ?PaystackClient $client = null;
 
@@ -43,14 +44,23 @@ class PaystackDriver extends AbstractDriver implements PayoutCapable, Refundable
     {
         $reference = $request->reference ?? Uuid::uuid4()->toString();
 
-        $result = $this->client()->initializeTransaction([
-            'email' => $request->customer?->email ?? 'customer@'.parse_url(config('app.url'), PHP_URL_HOST),
+        // Paystack requires an email. Prefer the customer's; otherwise use a
+        // syntactically valid placeholder (app.url may have no usable host).
+        $host = parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'example.com';
+
+        $params = [
+            'email' => $request->customer?->email ?: 'customer@'.$host,
             'amount' => $request->amount->minor,
             'currency' => $request->currency->value,
             'reference' => $reference,
             'callback_url' => $request->callbackUrl,
             'metadata' => $request->metadata,
-        ]);
+        ];
+
+        // Don't send nulls or an empty metadata list (Paystack expects an object).
+        $result = $this->client()->initializeTransaction(
+            array_filter($params, fn ($value) => $value !== null && $value !== [])
+        );
 
         if (! ($result['status'] ?? false)) {
             return PaymentResponse::makeFailed($this->provider(), message: $result['message'] ?? 'Transaction initialization failed', rawResponse: $result);
@@ -109,12 +119,25 @@ class PaystackDriver extends AbstractDriver implements PayoutCapable, Refundable
 
         return new RefundResponse(
             $this->provider(),
-            in_array($status, ['processed', 'success'], true) ? RefundStatus::Completed : RefundStatus::Processing,
+            match ($status) {
+                'processed', 'success' => RefundStatus::Completed,
+                'failed' => RefundStatus::Failed,
+                default => RefundStatus::Processing, // pending / processing / needs-attention
+            },
             refundId: isset($result['data']['id']) ? (string) $result['data']['id'] : null,
             providerReference: $request->providerReference,
             amount: $request->amount,
             rawResponse: $result,
         );
+    }
+
+    /**
+     * Paystack posts every event (transfer.*, refund.*, dispute, ...) to the same
+     * URL. Only `charge.success` describes a payment collected by charge().
+     */
+    public function handlesWebhook(WebhookPayload $payload): bool
+    {
+        return $payload->get('event') === 'charge.success';
     }
 
     public function handleCallback(WebhookPayload $payload): PaymentResponse
@@ -129,7 +152,8 @@ class PaystackDriver extends AbstractDriver implements PayoutCapable, Refundable
             return $this->responseFromTransaction($result['data'] ?? [], $reference);
         }
 
-        return $this->responseFromTransaction($data, $reference ?? '');
+        // No reference to re-verify against; nothing to match this callback to.
+        return $this->responseFromTransaction($data, '');
     }
 
     protected function responseFromTransaction(array $transaction, string $providerReference): PaymentResponse

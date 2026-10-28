@@ -22,7 +22,7 @@ The route accepts both `GET` and `POST` (Pesapal's IPN can be either, depending 
 |---|---|---|
 | M-Pesa | No signing; IP allowlist or secret route alias (production) | `Verifiers\MpesaSignatureVerifier` |
 | Stripe | `Stripe-Signature: t=...,v1=HMAC-SHA256("{t}.{body}", secret)`, ±5min replay window | `Verifiers\StripeSignatureVerifier` |
-| Paystack | `x-paystack-signature: HMAC-SHA512(body, secret_key)` | `Verifiers\PaystackSignatureVerifier` |
+| Paystack | `x-paystack-signature: HMAC-SHA512(body, secret_key)`; only `charge.success` is processed (other events are stored as `ignored`) and the transaction is re-verified server-side | `Verifiers\PaystackSignatureVerifier` |
 | Flutterwave | `verif-hash` header, constant-time equality against dashboard-configured secret | `Verifiers\FlutterwaveSignatureVerifier` |
 | Pesapal | No signature; re-verifies server-to-server via `GetTransactionStatus` | `Verifiers\PesapalSignatureVerifier` |
 | Airtel / PesaLink | `HMAC-SHA256(body, webhook_secret)` in a configurable header | `Verifiers\HmacHeaderSignatureVerifier` |

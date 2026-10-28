@@ -137,7 +137,14 @@ Daraja callbacks are unsigned, so with `confirm_callbacks` on, an STK **success*
 
 ### `drivers.paystack`
 
-`public_key`, `secret_key`, `base_url`.
+`public_key`, `secret_key`, `base_url`. **Stable.**
+
+- **Checkout:** `charge()` initializes a transaction and returns a pending payment; send the customer to `metadata['authorization_url']`.
+- **Webhook:** set `https://your-app.test/paysasa/webhooks/paystack` as the webhook URL in the Paystack dashboard. Requests are verified with HMAC-SHA512 using `secret_key`, and the transaction is **re-verified with Paystack** before a payment is settled — the webhook body is never trusted on its own.
+- **Events:** only `charge.success` is processed. Other events Paystack posts to the same URL (`transfer.*`, `refund.*`, ...) are stored with status `ignored`.
+- **Customer email:** Paystack requires one. Pass `->customer(new CustomerData(email: ...))`; otherwise a placeholder `customer@<app host>` is sent.
+- **Currencies:** those in the package's `Currency` enum (e.g. KES, USD). NGN, GHS and ZAR are not in the enum yet.
+- **Refunds** are asynchronous at Paystack: `pending` / `processing` / `needs-attention` are recorded as a `processing` refund, `processed` as `completed`, `failed` as `failed` (which releases the reserved amount). The package does not yet complete a refund from the `refund.processed` webhook, so confirm processing refunds in the Paystack dashboard.
 
 ### Google Pay / Apple Pay
 

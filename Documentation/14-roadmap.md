@@ -3,7 +3,7 @@
 ## Shipped in this baseline (pre-1.0)
 
 - Unified driver architecture across mobile money, cards, and banking abstractions.
-- 6 production/beta drivers (M-Pesa, Airtel Money, Stripe, Pesapal, Flutterwave, Paystack) + PesaLink (experimental).
+- 3 stable drivers (M-Pesa, Stripe, Paystack), 3 beta drivers (Airtel Money, Pesapal, Flutterwave) + PesaLink (experimental).
 - Strict state machine (`TransitionPayment`) guarding all status updates with row locks and firing terminal lifecycle events (`PaymentSuccessful`, `PaymentFailed`, `PaymentCancelled`, `PaymentExpired`).
 - Value objects for currency safety (`Money` value object preventing float truncation) and phone formatting (`KenyanMsisdn`).
 - Fail-closed webhook verification, size limits, raw-body deduplication, and amount mismatch anomaly detection.
@@ -23,6 +23,7 @@
 
 - **Additional bank integrations** shipped as concrete `AbstractBankingDriver` subclasses once a specific bank partnership/public API justifies maintaining it in core, rather than leaving every bank as a "bring your own subclass" exercise.
 - **A hosted status dashboard** (Filament/Nova-agnostic, or a standalone package) for browsing `payments`/`webhooks`/`payment_logs` without writing raw queries — likely a separate `paysasa/dashboard` package rather than bloating the core payment library with an admin UI dependency.
+- **Asynchronous refund completion** — completing a `processing` refund (and moving the payment to `refunded`) from provider refund webhooks such as Paystack's `refund.processed`.
 - **Async/reactive payment status via server-sent events** as an alternative to the existing Laravel Echo broadcast channel, for apps that don't already run a WebSocket layer.
 - **T-Kash driver support** if Telkom Kenya releases an open, standardized public API.
 

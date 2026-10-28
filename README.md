@@ -150,7 +150,7 @@ Paysasa also emits events when unexpected conditions occur:
 | `airtel` | Mobile Money | **Beta** | USSD push, collections, refunds |
 | `pesapal` | Cards | **Beta** | Hosted checkout, IPN callbacks |
 | `flutterwave` | Cards | **Beta** | Standard charges, webhook verification |
-| `paystack` | Cards | **Beta** | Charge initialization, webhook verification |
+| `paystack` | Cards | **Stable** | Hosted checkout, signed + re-verified webhooks, server-side verification, refunds, payouts |
 | `pesalink` | Banking | **Experimental** | Account transfers, banking rails (bring your own bank) |
 
 ---
