@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-28
+
 ### Security
 - Webhook verifiers now **fail closed** when their signing secret is not configured. `hash_hmac()` accepts an empty key, so with `STRIPE_WEBHOOK_SECRET`, `PAYSTACK_SECRET_KEY`, `AIRTEL_WEBHOOK_SECRET` or `PESALINK_WEBHOOK_SECRET` unset, anyone could sign a forged webhook with an empty key and have it verify (Flutterwave likewise accepted an empty `verif-hash`). These verifiers now reject every request with a `WebhookVerificationException` until a secret is set. **Upgrade note:** make sure the secret for each provider you receive webhooks from is configured.
 
