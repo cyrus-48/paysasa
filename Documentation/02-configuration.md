@@ -135,10 +135,6 @@ Daraja callbacks are unsigned, so with `confirm_callbacks` on, an STK **success*
 
 `public_key`, `secret_key`, `encryption_key`, `webhook_secret_hash`, `base_url`.
 
-### `drivers.paystack`
-
-`public_key`, `secret_key`, `base_url`.
-
 ### Google Pay / Apple Pay
 
 There is no wallet driver. Google Pay and Apple Pay are client-side tokenization layers over the card networks: your frontend exchanges the wallet credential for a processor payment-method token, and you charge it through a card driver such as `stripe`. See [`04-architecture.md`](04-architecture.md#digital-wallets-google-pay--apple-pay).

@@ -231,7 +231,7 @@ flowchart LR
 Three patterns, depending on provider:
 
 1. **OAuth2 client-credentials, cached** (Daraja, Airtel, Pesapal) — `Services\*\*Authenticator implements Contracts\TokenProvider`, caches the bearer token for slightly less than its real TTL (e.g. Daraja: cached 3500s of a 3599s token) so a near-expiry token is never handed to an in-flight request.
-2. **Static bearer secret key** (Stripe, Flutterwave, Paystack) — no token exchange; the secret key itself is the credential, sent as `Authorization: Bearer`.
+2. **Static bearer secret key** (Stripe, Flutterwave) — no token exchange; the secret key itself is the credential, sent as `Authorization: Bearer`.
 3. **API key + bank-specific scheme** (banking rails) — via `AbstractBankingDriver`, overridden per bank.
 
 ## Error handling strategy

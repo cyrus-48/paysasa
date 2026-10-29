@@ -50,7 +50,6 @@ Every provider calls back into `{APP_URL}/paysasa/webhooks/{provider}`, e.g.:
 
 - `https://yourapp.test/paysasa/webhooks/mpesa`
 - `https://yourapp.test/paysasa/webhooks/stripe`
-- `https://yourapp.test/paysasa/webhooks/paystack`
 
 For M-Pesa specifically, C2B additionally requires **registering** the validation/confirmation URLs before Safaricom will call them:
 

@@ -17,7 +17,7 @@ Run `php artisan paysasa:status` to see exactly which driver and which keys. Alm
 ### `WebhookVerificationException` / webhooks returning 401
 
 - **Stripe**: confirm `STRIPE_WEBHOOK_SECRET` matches the *specific* endpoint's signing secret from the Stripe Dashboard (each endpoint has its own secret) — or, in local dev, the secret printed by `stripe listen`.
-- **Paystack/Flutterwave**: confirm you're using the secret **key**, not the public key, for signature verification (`PaystackSignatureVerifier` hashes with `secret_key`).
+- **Flutterwave**: `FLUTTERWAVE_WEBHOOK_SECRET_HASH` must equal the "secret hash" you set in the Flutterwave dashboard (sent back as the `verif-hash` header) — it is not your API secret key.
 - **M-Pesa**: if you've populated `MPESA_WEBHOOK_IP_ALLOWLIST`, confirm Safaricom's current published source IPs match — these do occasionally change; check Daraja's developer portal for the current list, or temporarily clear the allowlist to confirm this is the cause before re-populating it correctly.
 - Check the `webhooks` table row: `error_message` on a `verification_failed` row tells you exactly which check failed.
 

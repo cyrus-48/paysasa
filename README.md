@@ -2,7 +2,7 @@
 
 **A unified, driver-based payment gateway abstraction for Laravel 11, 12, and 13, purpose-built for the Kenyan market.**
 
-Paysasa gives a Laravel application one consistent, hardened API — `Payment::driver('mpesa')->amount(2500)->phone('0712345678')->charge()` — for M-Pesa, Airtel Money, Stripe, Pesapal, Flutterwave, Paystack, and PesaLink. Business logic never talks to a provider SDK directly; it talks to Paysasa, and Paysasa orchestrates validation, idempotency, persistence, state transitions, events, and background reconciliation.
+Paysasa gives a Laravel application one consistent, hardened API — `Payment::driver('mpesa')->amount(2500)->phone('0712345678')->charge()` — for M-Pesa, Airtel Money, Stripe, Pesapal, Flutterwave, and PesaLink. Business logic never talks to a provider SDK directly; it talks to Paysasa, and Paysasa orchestrates validation, idempotency, persistence, state transitions, events, and background reconciliation.
 
 This README is the quickstart and overview. The comprehensive architecture specification lives in [`Documentation/`](Documentation/00-overview.md).
 
@@ -81,13 +81,6 @@ Payment::driver('stripe')
     ->reference('INV-1002')
     ->charge();
 
-// Paystack
-Payment::driver('paystack')
-    ->amount(1000)
-    ->phone('0712345678')
-    ->reference('INV-1003')
-    ->charge();
-
 // PesaLink Bank Transfer (Experimental)
 Payment::driver('pesalink')
     ->amount(50000)
@@ -150,7 +143,6 @@ Paysasa also emits events when unexpected conditions occur:
 | `airtel` | Mobile Money | **Beta** | USSD push, collections, refunds |
 | `pesapal` | Cards | **Beta** | Hosted checkout, IPN callbacks |
 | `flutterwave` | Cards | **Beta** | Standard charges, webhook verification |
-| `paystack` | Cards | **Beta** | Charge initialization, webhook verification |
 | `pesalink` | Banking | **Experimental** | Account transfers, banking rails (bring your own bank) |
 
 ---

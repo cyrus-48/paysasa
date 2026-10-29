@@ -9,7 +9,6 @@ use Paysasa\Payments\Exceptions\DriverNotFoundException;
 use Paysasa\Payments\Webhooks\Verifiers\FlutterwaveSignatureVerifier;
 use Paysasa\Payments\Webhooks\Verifiers\HmacHeaderSignatureVerifier;
 use Paysasa\Payments\Webhooks\Verifiers\MpesaSignatureVerifier;
-use Paysasa\Payments\Webhooks\Verifiers\PaystackSignatureVerifier;
 use Paysasa\Payments\Webhooks\Verifiers\PesapalSignatureVerifier;
 use Paysasa\Payments\Webhooks\Verifiers\StripeSignatureVerifier;
 
@@ -31,7 +30,6 @@ class WebhookDispatcher
 
         return match ($provider) {
             'stripe' => new StripeSignatureVerifier($driverConfig['webhook_secret'] ?? ''),
-            'paystack' => new PaystackSignatureVerifier($driverConfig['secret_key'] ?? ''),
             'flutterwave' => new FlutterwaveSignatureVerifier($driverConfig['webhook_secret_hash'] ?? ''),
             'mpesa' => new MpesaSignatureVerifier($driverConfig['webhook_ip_allowlist'] ?? [], $isOpaqueRoute),
             'pesapal' => new PesapalSignatureVerifier(),

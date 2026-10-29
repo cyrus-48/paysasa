@@ -34,18 +34,18 @@ if ($response->successful()) {
 }
 ```
 
-## Hosted checkout (Pesapal / Flutterwave / Paystack)
+## Hosted checkout (Pesapal / Flutterwave)
 
 ```php
-$response = Payment::driver('paystack')
+$response = Payment::driver('flutterwave')
     ->amount(1000)
-    ->phone('254712345678')
+    ->currency('KES')
+    ->customer(new \Paysasa\Payments\DTOs\CustomerData(email: 'jane@example.com', phone: '254712345678'))
     ->reference('ORDER-779')
     ->callbackUrl(route('checkout.callback'))
     ->charge();
 
-return redirect($response->rawResponse()['metadata']['authorization_url']
-    ?? $response->toArray()['metadata']['authorization_url']); // redirect the customer to the hosted page
+return redirect($response->metadata['link']); // send the customer to the hosted checkout page
 ```
 
 ## Payouts (B2C / bank transfer)

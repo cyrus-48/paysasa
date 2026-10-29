@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Http;
 use Paysasa\Payments\DTOs\RefundRequest;
-use Paysasa\Payments\DTOs\WebhookPayload;
-use Paysasa\Payments\Enums\PaymentProvider;
 use Paysasa\Payments\Managers\PaymentManager;
 
 // RWF is a zero-decimal currency: 5000 minor units == 5000 RWF, not 50.00.
@@ -49,32 +47,3 @@ it('captures a partial Stripe amount using the intent currency', function () {
 
     Http::assertSent(fn ($request) => str_ends_with($request->url(), '/capture') && (int) $request['amount_to_capture'] === 5000);
 });
-
-it('reads Paystack amounts using the currency exponent', function (string $currency, int $minor, float $expected) {
-    config()->set('paysasa.drivers.paystack.secret_key', 'sk_test_x');
-    Http::fake(['api.paystack.co/transaction/verify/*' => Http::response(['status' => true, 'data' => [
-        'status' => 'success', 'reference' => 'ref1', 'amount' => $minor, 'currency' => $currency,
-    ]])]);
-
-    $payload = new WebhookPayload(PaymentProvider::Paystack, [], '{}', ['data' => ['reference' => 'ref1']]);
-    $response = app(PaymentManager::class)->driverInstance('paystack')->handleCallback($payload);
-
-    expect($response->amount)->toBe($expected);
-})->with([
-    'NGN two-decimal' => ['NGN', 250000, 2500.0],
-    'KES two-decimal' => ['KES', 250000, 2500.0],
-    'RWF zero-decimal' => ['RWF', 5000, 5000.0],
-]);
-
-it('sends Paystack refund amounts in the currency minor unit', function (string $currency, float $amount, int $expectedMinor) {
-    config()->set('paysasa.drivers.paystack.secret_key', 'sk_test_x');
-    Http::fake(['api.paystack.co/refund' => Http::response(['status' => true, 'data' => ['id' => 9, 'status' => 'processed']])]);
-
-    app(PaymentManager::class)->driverInstance('paystack')
-        ->refund(new RefundRequest('txn-1', 'ref1', $amount, currency: $currency));
-
-    Http::assertSent(fn ($request) => str_ends_with($request->url(), '/refund') && (int) $request['amount'] === $expectedMinor);
-})->with([
-    'KES' => ['KES', 25.0, 2500],
-    'RWF' => ['RWF', 5000.0, 5000],
-]);

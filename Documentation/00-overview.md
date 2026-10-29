@@ -37,7 +37,7 @@ flowchart TB
     subgraph Providers["External Providers"]
         Daraja[Safaricom Daraja]
         StripeAPI[Stripe]
-        Others[Airtel / Pesapal / Flutterwave / Paystack / Banks]
+        Others[Airtel / Pesapal / Flutterwave / Banks]
     end
 
     Ctrl --> Facade --> Manager --> Builder --> Action
@@ -72,7 +72,7 @@ paysasa/
 │   ├── Managers/                   # PaymentManager — Laravel Manager Pattern driver resolution
 │   ├── Drivers/                    # Concrete provider implementations, grouped by category
 │   │   ├── MobileMoney/            # MpesaDriver, AirtelMoneyDriver
-│   │   ├── Cards/                  # StripeDriver, PesapalDriver, FlutterwaveDriver, PaystackDriver
+│   │   ├── Cards/                  # StripeDriver, PesapalDriver, FlutterwaveDriver
 │   │   └── Banking/                # AbstractBankingDriver, PesaLinkDriver (experimental)
 │   ├── Services/                   # Raw-HTTP, provider-faithful clients (DarajaClient, StripeClient, ...) — no Paysasa DTOs here
 │   ├── Actions/                    # Single-purpose orchestrators: InitiatePayment, VerifyPayment, ProcessRefund, RunFraudChecks

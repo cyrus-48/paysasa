@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **The Paystack driver** (`PaystackDriver`, `PaystackClient`, `PaystackSignatureVerifier`), the `paystack` entry in `config/paysasa.php`, the `PaymentProvider::Paystack` case, the `/paysasa/webhooks/paystack` webhook handling, and all Paystack documentation. It never left beta, and the project is focusing on M-Pesa, Stripe and the remaining drivers.
+
+  **Upgrade note (breaking):** `Payment::$provider` is cast to the `PaymentProvider` enum, so after upgrading any stored payment with `provider = 'paystack'` can no longer be loaded through the Eloquent models (it throws a `ValueError`), including by the `paysasa:reconcile` sweep if such a payment is still pending. If you used the Paystack driver, **before upgrading**: let in-flight Paystack payments reach a terminal state, and export or archive (then delete) your `paysasa` rows where `provider = 'paystack'`. Also remove `PAYSTACK_*` from your `.env`, and point the Paystack dashboard webhook elsewhere (the route now returns 404 for `paystack`).
+
 ## [0.9.1] - 2026-10-28
 
 ### Security

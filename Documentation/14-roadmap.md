@@ -3,7 +3,7 @@
 ## Shipped in this baseline (pre-1.0)
 
 - Unified driver architecture across mobile money, cards, and banking abstractions.
-- 6 production/beta drivers (M-Pesa, Airtel Money, Stripe, Pesapal, Flutterwave, Paystack) + PesaLink (experimental).
+- 5 production/beta drivers (M-Pesa, Airtel Money, Stripe, Pesapal, Flutterwave) + PesaLink (experimental).
 - Strict state machine (`TransitionPayment`) guarding all status updates with row locks and firing terminal lifecycle events (`PaymentSuccessful`, `PaymentFailed`, `PaymentCancelled`, `PaymentExpired`).
 - Value objects for currency safety (`Money` value object preventing float truncation) and phone formatting (`KenyanMsisdn`).
 - Fail-closed webhook verification, size limits, raw-body deduplication, and amount mismatch anomaly detection.
@@ -28,7 +28,7 @@
 
 ## Explicitly out of scope
 
-- **A hosted PCI-compliant card vault.** Card tokenization is delegated to the processor (Stripe, Paystack, etc.) by design — Paysasa will not add raw card number handling, which would defeat the PCI-scope-reduction goal described in [`08-security.md`](08-security.md).
+- **A hosted PCI-compliant card vault.** Card tokenization is delegated to the processor (Stripe, etc.) by design — Paysasa will not add raw card number handling, which would defeat the PCI-scope-reduction goal described in [`08-security.md`](08-security.md).
 - **Currency conversion / FX rate management.** Multi-currency support means "charge in the currency the provider was given," not automatic conversion — that's a treasury/accounting concern belonging in the host application or a dedicated FX package.
 
 Contributions toward any near-term or under-consideration item are welcome — see [`13-contributing.md`](13-contributing.md), and open an issue to discuss design before a large PR.

@@ -11,14 +11,13 @@ enum PaymentProvider: string
     case Stripe = 'stripe';
     case Pesapal = 'pesapal';
     case Flutterwave = 'flutterwave';
-    case Paystack = 'paystack';
     case PesaLink = 'pesalink';
 
     public function category(): PaymentCategory
     {
         return match ($this) {
             self::Mpesa, self::Airtel => PaymentCategory::MobileMoney,
-            self::Stripe, self::Pesapal, self::Flutterwave, self::Paystack => PaymentCategory::Card,
+            self::Stripe, self::Pesapal, self::Flutterwave => PaymentCategory::Card,
             self::PesaLink => PaymentCategory::Banking,
         };
     }
@@ -31,7 +30,6 @@ enum PaymentProvider: string
             self::Stripe => 'Stripe',
             self::Pesapal => 'Pesapal',
             self::Flutterwave => 'Flutterwave',
-            self::Paystack => 'Paystack',
             self::PesaLink => 'PesaLink',
         };
     }
