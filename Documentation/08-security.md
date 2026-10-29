@@ -24,7 +24,7 @@ Two independent layers, deliberately: Stripe's signature scheme includes a times
 
 ## Request signing (outbound)
 
-Provider-specific, implemented per driver: Daraja's `SecurityCredential` (RSA-encrypted initiator password via Safaricom's public certificate — see `MpesaDriver::securityCredential()`), Stripe/Paystack/Flutterwave's bearer-token auth, Pesapal's OAuth-style token exchange. See `04-architecture.md#authentication-flow`.
+Provider-specific, implemented per driver: Daraja's `SecurityCredential` (RSA-encrypted initiator password via Safaricom's public certificate — see `MpesaDriver::securityCredential()`), Stripe/Flutterwave's bearer-token auth, Pesapal's OAuth-style token exchange. See `04-architecture.md#authentication-flow`.
 
 ## Rate limiting
 
@@ -60,7 +60,7 @@ This is a hook point, not a fraud engine — Paysasa doesn't ship device fingerp
 
 Paysasa is designed so a host application **never handles a raw PAN, CVV, or full card number** server-side:
 
-- Card charges go through `cardToken`/`paymentMethodId` — a token minted client-side (Stripe.js, Paystack's inline JS, etc.) that only the card network/processor can turn back into card data.
+- Card charges go through `cardToken`/`paymentMethodId` — a token minted client-side (Stripe.js, etc.) that only the card network/processor can turn back into card data.
 - `payment_methods.token` stores only the provider's vault reference.
 - This keeps the host application's PCI scope at **SAQ A** (or SAQ A-EP depending on integration details) rather than SAQ D — you are not required to store, process, or transmit cardholder data, because you never receive it. Verify your specific integration against current PCI SSC guidance; this package removes the *need* to touch cardholder data, it doesn't retroactively certify your deployment.
 

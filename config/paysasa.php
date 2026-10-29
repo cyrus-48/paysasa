@@ -280,13 +280,6 @@ return [
             'base_url' => env('FLUTTERWAVE_BASE_URL', 'https://api.flutterwave.com/v3'),
         ],
 
-        'paystack' => [
-            'driver' => \Paysasa\Payments\Drivers\Cards\PaystackDriver::class,
-            'public_key' => env('PAYSTACK_PUBLIC_KEY'),
-            'secret_key' => env('PAYSTACK_SECRET_KEY'),
-            'base_url' => env('PAYSTACK_BASE_URL', 'https://api.paystack.co'),
-        ],
-
         /*
         |----------------------------------------------------------------
         | Banking (Experimental)

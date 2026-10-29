@@ -7,7 +7,6 @@ use Paysasa\Payments\Enums\PaymentProvider;
 use Paysasa\Payments\Exceptions\WebhookVerificationException;
 use Paysasa\Payments\Webhooks\Verifiers\FlutterwaveSignatureVerifier;
 use Paysasa\Payments\Webhooks\Verifiers\HmacHeaderSignatureVerifier;
-use Paysasa\Payments\Webhooks\Verifiers\PaystackSignatureVerifier;
 use Paysasa\Payments\Webhooks\Verifiers\StripeSignatureVerifier;
 
 it('accepts a Stripe webhook with a valid HMAC signature', function () {
@@ -43,16 +42,6 @@ it('rejects a Stripe webhook missing the signature header entirely', function ()
     (new StripeSignatureVerifier('whsec_test'))->verify($payload);
 })->throws(WebhookVerificationException::class);
 
-it('accepts a Paystack webhook with a valid SHA512 signature', function () {
-    $secret = 'sk_test_paystack';
-    $body = json_encode(['event' => 'charge.success']);
-    $signature = hash_hmac('sha512', $body, $secret);
-
-    $payload = new WebhookPayload(PaymentProvider::Paystack, ['x-paystack-signature' => [$signature]], $body, json_decode($body, true));
-
-    (new PaystackSignatureVerifier($secret))->verify($payload);
-})->throwsNoExceptions();
-
 it('accepts a Flutterwave webhook whose verif-hash matches the configured secret', function () {
     $payload = new WebhookPayload(PaymentProvider::Flutterwave, ['verif-hash' => ['my-secret-hash']], '{}', []);
 
@@ -82,15 +71,6 @@ it('rejects a Stripe webhook signed with an empty key when no secret is configur
     );
 
     (new StripeSignatureVerifier(''))->verify($payload);
-})->throws(WebhookVerificationException::class, 'no signing secret');
-
-it('rejects a Paystack webhook signed with an empty key when no secret is configured', function () {
-    $body = '{"event":"charge.success"}';
-    $forged = hash_hmac('sha512', $body, '');
-
-    $payload = new WebhookPayload(PaymentProvider::Paystack, ['x-paystack-signature' => [$forged]], $body, []);
-
-    (new PaystackSignatureVerifier(''))->verify($payload);
 })->throws(WebhookVerificationException::class, 'no signing secret');
 
 it('rejects a Flutterwave webhook with an empty verif-hash when no secret hash is configured', function () {
