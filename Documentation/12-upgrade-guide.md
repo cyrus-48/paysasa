@@ -39,6 +39,7 @@ The following unproven and phantom drivers have been removed:
 - `GooglePayDriver` & `ApplePayDriver`: Use `Payment::driver('stripe')->paymentMethod($token)->charge()` instead.
 - `TKashDriver`: Telkom Kenya lacks a standardized public API; removed until an official API is released.
 - `EftDriver`, `RtgsDriver`, and `VirtualAccountDriver`: Removed in favor of `PesaLinkDriver` (experimental) or custom bank drivers extending `AbstractBankingDriver`.
+- `PaystackDriver`: Removed (it never left beta). Stored payments with `provider = 'paystack'` can no longer be loaded through the Eloquent models because `Payment::$provider` is cast to the `PaymentProvider` enum, which no longer has a `paystack` case — this includes `paysasa:reconcile` if such a payment is still pending. **Before upgrading:** let in-flight Paystack payments reach a terminal state, export/archive and delete your `provider = 'paystack'` rows (in `payments` and `webhooks`), remove `PAYSTACK_*` from `.env`, and repoint the Paystack dashboard webhook (`/paysasa/webhooks/paystack` now returns 404). For hosted card checkout use `stripe`, `pesapal` or `flutterwave`.
 
 ### 2. Money Value Object & Fraction Validation
 Amounts in `ChargeRequest` now use the immutable `Money` value object. Fractional units for whole-unit currencies (e.g. KES) are rejected (`InvalidAmountException`) rather than silently truncated.
