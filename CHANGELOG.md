@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Airtel Money driver** — several defects that would have broken it against the real API:
+  - The subscriber number is now sent without the country code (`712345678`, not `254712345678`).
+  - Callbacks are read from `transaction.status_code` (the enquiry API's `status` is still accepted). Previously the status was read from the wrong key, so every real callback was treated as a failure, and in-progress (`TIP`) / ambiguous (`TA`) callbacks were recorded as failed payments instead of staying pending. `TE` maps to expired.
+  - Access tokens are cached for the `expires_in` Airtel reports instead of a fixed 50 minutes, and a `401` refreshes the token and retries once.
+  - Refunds use Airtel's `airtel_money_id` (stored as the receipt number, now also captured from enquiries and callbacks) instead of the merchant id. Airtel refunds in full only, so partial refunds throw `UnsupportedOperationException`; `ProcessRefund` now passes `receipt_number` and `payment_amount` to drivers in `RefundRequest::$metadata` and releases the reservation when a driver refuses a refund before contacting the provider.
+  - Payouts now RSA-encrypt the disbursement PIN (`AIRTEL_DISBURSEMENT_PIN` + `AIRTEL_PUBLIC_KEY`); they used to send `pin: null`.
+  - A charge or payout whose currency differs from `AIRTEL_CURRENCY` is refused instead of being silently debited in the configured currency.
+  - The enquiry path segment is URL-encoded.
+
+### Security
+- Airtel callbacks are now handled as the unsigned webhooks they are. The old verifier demanded an `x-signature` HMAC that Airtel does not document, so real callbacks would have been rejected. New `Verifiers\AllowlistWebhookVerifier` (also the base of the M-Pesa verifier) uses a source-IP allowlist (`AIRTEL_WEBHOOK_IP_ALLOWLIST`) and/or a secret route alias (`PAYSASA_AIRTEL_WEBHOOK_ALIAS`), and fails closed in production when neither is set. A success callback is also confirmed with Airtel's transaction enquiry before it settles a payment (`AIRTEL_CONFIRM_CALLBACKS`, default `true`), so a forged callback cannot mark a payment as paid.
+
+  **Upgrade note (breaking, Airtel users):** `drivers.airtel.webhook_secret` / `AIRTEL_WEBHOOK_SECRET` and `public_key_id` are removed. Before going live, set `AIRTEL_WEBHOOK_IP_ALLOWLIST` and/or `PAYSASA_AIRTEL_WEBHOOK_ALIAS`, otherwise the Airtel webhook endpoint refuses every request in production.
+
 ### Removed
 - **The Paystack driver** (`PaystackDriver`, `PaystackClient`, `PaystackSignatureVerifier`), the `paystack` entry in `config/paysasa.php`, the `PaymentProvider::Paystack` case, the `/paysasa/webhooks/paystack` webhook handling, and all Paystack documentation. It never left beta, and the project is focusing on M-Pesa, Stripe and the remaining drivers.
 

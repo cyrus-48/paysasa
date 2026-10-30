@@ -62,9 +62,10 @@ return [
     | Generate a slug with e.g. `php -r "echo bin2hex(random_bytes(12));"`.
     |
     */
-    'webhook_aliases' => env('PAYSASA_MPESA_WEBHOOK_ALIAS')
-        ? [env('PAYSASA_MPESA_WEBHOOK_ALIAS') => 'mpesa']
-        : [],
+    'webhook_aliases' => array_filter([
+        (string) env('PAYSASA_MPESA_WEBHOOK_ALIAS', '') => 'mpesa',
+        (string) env('PAYSASA_AIRTEL_WEBHOOK_ALIAS', '') => 'airtel',
+    ], fn ($provider, $slug) => $slug !== '', ARRAY_FILTER_USE_BOTH),
 
     'webhooks' => [
         // Requests larger than this are rejected with 413 before anything is stored.
@@ -238,8 +239,14 @@ return [
             'country' => env('AIRTEL_COUNTRY', 'KE'),
             'currency' => env('AIRTEL_CURRENCY', 'KES'),
             'callback_url' => env('AIRTEL_CALLBACK_URL'),
-            'public_key_id' => env('AIRTEL_PUBLIC_KEY_ID'),
-            'webhook_secret' => env('AIRTEL_WEBHOOK_SECRET'),
+            // Airtel callbacks are unsigned. Restrict by source IP (comma-separated) and/or receive them on a
+            // secret route alias (PAYSASA_AIRTEL_WEBHOOK_ALIAS); in production one of the two is required.
+            'webhook_ip_allowlist' => array_filter(explode(',', (string) env('AIRTEL_WEBHOOK_IP_ALLOWLIST', ''))),
+            // A claimed success is confirmed with Airtel's transaction enquiry before the payment is settled.
+            'confirm_callbacks' => env('AIRTEL_CONFIRM_CALLBACKS', true),
+            // Disbursements (payouts): the PIN is RSA-encrypted with Airtel's public key (PEM) before it is sent.
+            'disbursement_pin' => env('AIRTEL_DISBURSEMENT_PIN'),
+            'public_key' => env('AIRTEL_PUBLIC_KEY'),
             'base_urls' => [
                 'sandbox' => 'https://openapiuat.airtel.africa',
                 'production' => 'https://openapi.airtel.africa',

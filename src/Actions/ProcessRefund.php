@@ -14,6 +14,7 @@ use Paysasa\Payments\Enums\PaymentStatus;
 use Paysasa\Payments\Enums\RefundStatus;
 use Paysasa\Payments\Events\PaymentRefunded;
 use Paysasa\Payments\Exceptions\InvalidAmountException;
+use Paysasa\Payments\Exceptions\InvalidConfigurationException;
 use Paysasa\Payments\Exceptions\PaymentNotRefundableException;
 use Paysasa\Payments\Exceptions\ProviderApiException;
 use Paysasa\Payments\Exceptions\UnsupportedOperationException;
@@ -70,7 +71,11 @@ class ProcessRefund
                 ? $currency->fromMinorUnits((int) $refund->getAttribute('amount_minor'))
                 : $request->amount,
             reason: $request->reason,
-            metadata: $request->metadata,
+            // Providers that refund by their own id or only in full (Airtel) need these.
+            metadata: array_merge($request->metadata, [
+                'receipt_number' => $payment->receipt_number,
+                'payment_amount' => $payment->amount,
+            ]),
             currency: $request->currency ?? $currency->value,
         );
 
@@ -86,6 +91,13 @@ class ProcessRefund
                     'raw_response' => is_array($e->rawResponse()) ? $e->rawResponse() : null,
                 ]);
             }
+
+            throw $e;
+        } catch (UnsupportedOperationException|InvalidAmountException|InvalidConfigurationException $e) {
+            // The driver refused before anything reached the provider (e.g. a
+            // partial refund on a provider that only refunds in full): nothing
+            // can have been refunded, so release the reservation.
+            $refund->update(['status' => RefundStatus::Failed]);
 
             throw $e;
         }
