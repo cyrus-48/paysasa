@@ -6,6 +6,7 @@ namespace Paysasa\Payments\Webhooks;
 
 use Paysasa\Payments\Contracts\SignatureVerifier;
 use Paysasa\Payments\Exceptions\DriverNotFoundException;
+use Paysasa\Payments\Webhooks\Verifiers\AllowlistWebhookVerifier;
 use Paysasa\Payments\Webhooks\Verifiers\FlutterwaveSignatureVerifier;
 use Paysasa\Payments\Webhooks\Verifiers\HmacHeaderSignatureVerifier;
 use Paysasa\Payments\Webhooks\Verifiers\MpesaSignatureVerifier;
@@ -33,7 +34,9 @@ class WebhookDispatcher
             'flutterwave' => new FlutterwaveSignatureVerifier($driverConfig['webhook_secret_hash'] ?? ''),
             'mpesa' => new MpesaSignatureVerifier($driverConfig['webhook_ip_allowlist'] ?? [], $isOpaqueRoute),
             'pesapal' => new PesapalSignatureVerifier(),
-            'airtel', 'pesalink' => new HmacHeaderSignatureVerifier(
+            // Airtel callbacks are unsigned: allowlist / opaque route + confirmation with Airtel (see AirtelMoneyDriver).
+            'airtel' => new AllowlistWebhookVerifier('airtel', $driverConfig['webhook_ip_allowlist'] ?? [], $isOpaqueRoute),
+            'pesalink' => new HmacHeaderSignatureVerifier(
                 $provider,
                 $driverConfig['webhook_secret'] ?? '',
             ),

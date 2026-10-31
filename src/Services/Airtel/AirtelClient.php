@@ -33,10 +33,28 @@ class AirtelClient
             ->timeout(30);
     }
 
+    /**
+     * Send a request, and if Airtel answers 401 (token expired or revoked
+     * earlier than we expected) fetch a fresh token and retry exactly once.
+     *
+     * @param callable(PendingRequest): Response $request
+     */
+    protected function send(callable $request): Response
+    {
+        $response = $request($this->http());
+
+        if ($response->status() === 401) {
+            $this->auth->forceRefresh();
+            $response = $request($this->http());
+        }
+
+        return $response;
+    }
+
     /** USSD push collection request. */
     public function collect(array $params): array
     {
-        $response = $this->http()->post('/merchant/v1/payments/', [
+        $response = $this->send(fn (PendingRequest $http) => $http->post('/merchant/v1/payments/', [
             'reference' => $params['reference'],
             'subscriber' => ['country' => $this->country, 'currency' => $this->currency, 'msisdn' => $params['phone']],
             'transaction' => [
@@ -45,14 +63,14 @@ class AirtelClient
                 'currency' => $this->currency,
                 'id' => $params['transaction_id'] ?? (string) Str::uuid(),
             ],
-        ]);
+        ]));
 
         return $this->decode($response, 'collection request');
     }
 
     public function transactionEnquiry(string $transactionId): array
     {
-        $response = $this->http()->get("/standard/v1/payments/{$transactionId}");
+        $response = $this->send(fn (PendingRequest $http) => $http->get('/standard/v1/payments/'.rawurlencode($transactionId)));
 
         return $this->decode($response, 'transaction enquiry');
     }
@@ -60,7 +78,7 @@ class AirtelClient
     /** Disbursement (payout / B2C). */
     public function disburse(array $params): array
     {
-        $response = $this->http()->post('/standard/v1/disbursements/', [
+        $response = $this->send(fn (PendingRequest $http) => $http->post('/standard/v1/disbursements/', [
             'payee' => ['msisdn' => $params['phone']],
             'reference' => $params['reference'],
             'pin' => $params['encrypted_pin'] ?? null,
@@ -68,16 +86,17 @@ class AirtelClient
                 'amount' => $params['amount'],
                 'id' => $params['transaction_id'] ?? (string) Str::uuid(),
             ],
-        ]);
+        ]));
 
         return $this->decode($response, 'disbursement');
     }
 
+    /** Refund by Airtel's own transaction id (`airtel_money_id`, the receipt number), not the merchant's. */
     public function refund(string $transactionId): array
     {
-        $response = $this->http()->post('/standard/v1/payments/refund', [
+        $response = $this->send(fn (PendingRequest $http) => $http->post('/standard/v1/payments/refund', [
             'transaction' => ['airtel_money_id' => $transactionId],
-        ]);
+        ]));
 
         return $this->decode($response, 'refund');
     }

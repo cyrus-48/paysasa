@@ -121,7 +121,14 @@ Daraja callbacks are unsigned, so with `confirm_callbacks` on, an STK **success*
 
 ### `drivers.airtel`
 
-`client_id`, `client_secret`, `country` (default `KE`), `currency` (default `KES`), `callback_url`, `webhook_secret`.
+`client_id`, `client_secret`, `country` (default `KE`), `currency` (default `KES`), `callback_url`, `webhook_ip_allowlist`, `confirm_callbacks`, `disbursement_pin`, `public_key`.
+
+- **Currency.** Airtel debits in the currency configured here (`AIRTEL_CURRENCY`, sent as `X-Currency`). A charge or payout in any other currency throws `InvalidConfigurationException` before anything is sent, rather than silently debiting the wrong currency.
+- **Phone numbers** are normalised and sent to Airtel without the country code (`0712345678` becomes `712345678`).
+- **Callbacks are unsigned.** Airtel's callback carries no signature that Paysasa verifies, so there is no `webhook_secret`. In production you must set `AIRTEL_WEBHOOK_IP_ALLOWLIST` (comma-separated source IPs) and/or receive callbacks on a secret route alias (`PAYSASA_AIRTEL_WEBHOOK_ALIAS`); with neither, the endpoint refuses every request. Independently of that, with `confirm_callbacks` on (`AIRTEL_CONFIRM_CALLBACKS`, default `true`) a **success** callback is confirmed with Airtel's transaction enquiry before the payment is settled; if Airtel disagrees its answer wins, and if it cannot confirm yet the job retries.
+- **Refunds** use Airtel's own transaction id (the `airtel_money_id`, stored as the payment's `receipt_number`) and Airtel refunds the **full** amount only: a partial refund throws `UnsupportedOperationException` and releases the reservation. A payment with no receipt number cannot be refunded.
+- **Payouts** need `AIRTEL_DISBURSEMENT_PIN` and `AIRTEL_PUBLIC_KEY` (Airtel's RSA public key, PEM or bare base64); the PIN is RSA-encrypted (PKCS#1 v1.5) and base64-encoded before it is sent.
+- Access tokens are cached for Airtel's reported `expires_in` (minus a 60 second margin), and a `401` triggers one token refresh and retry.
 
 ### `drivers.stripe`
 

@@ -14,6 +14,7 @@ use Paysasa\Payments\Events\PaymentRefunded;
 use Paysasa\Payments\Exceptions\InvalidAmountException;
 use Paysasa\Payments\Exceptions\PaymentNotRefundableException;
 use Paysasa\Payments\Exceptions\ProviderApiException;
+use Paysasa\Payments\Exceptions\UnsupportedOperationException;
 use Paysasa\Payments\Models\Payment;
 use Paysasa\Payments\Models\Refund;
 use Paysasa\Payments\Testing\FakeDriver;
@@ -169,4 +170,36 @@ it('keeps the amount reserved when the refund outcome is unknown after a timeout
     // The first refund may have gone through, so the same amount must not be refunded again.
     expect(fn () => app(ProcessRefund::class)->execute(new FakeDriver(), $payment->fresh(), refundRequestFor($payment)))
         ->toThrow(InvalidAmountException::class);
+});
+
+it('passes the receipt number and original amount to the driver for providers that refund by their own id', function () {
+    $payment = refundablePayment(10000);
+    $payment->update(['receipt_number' => 'RCPT_123']);
+
+    $driver = recordingRefundDriver();
+    app(ProcessRefund::class)->execute($driver, $payment->fresh(), refundRequestFor($payment));
+
+    expect($driver->seen->metadata['receipt_number'])->toBe('RCPT_123')
+        ->and($driver->seen->metadata['payment_amount'])->toBe(100.0)
+        ->and($driver->seen->currency)->toBe('KES');
+});
+
+it('releases the reservation when the driver refuses the refund before contacting the provider', function () {
+    $payment = refundablePayment(10000);
+
+    $refusing = new class extends FakeDriver {
+        public function refund(RefundRequest $request): RefundResponse
+        {
+            throw UnsupportedOperationException::make('fake', 'partial refund');
+        }
+    };
+
+    expect(fn () => app(ProcessRefund::class)->execute($refusing, $payment, refundRequestFor($payment, 10.0)))
+        ->toThrow(UnsupportedOperationException::class);
+
+    expect(Refund::first()->status)->toBe(RefundStatus::Failed);
+
+    // Nothing was reserved, so the full amount can still be refunded.
+    app(ProcessRefund::class)->execute(new FakeDriver(), $payment->fresh(), refundRequestFor($payment));
+    expect($payment->fresh()->status)->toBe(PaymentStatus::Refunded);
 });
