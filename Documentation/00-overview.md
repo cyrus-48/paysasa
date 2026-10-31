@@ -87,7 +87,7 @@ paysasa/
 │   ├── Webhooks/                   # WebhookDispatcher + Verifiers/ (one SignatureVerifier per provider — Strategy Pattern)
 │   ├── Support/                    # FluentPaymentBuilder, IdempotencyManager, CredentialVault, EloquentPaymentRepository, PaymentLogger, AuditLogger
 │   ├── Facades/Payment.php         # The Payment facade
-│   ├── Console/Commands/           # paysasa:install, paysasa:status, paysasa:mpesa:register-urls
+│   ├── Console/Commands/           # paysasa:install, paysasa:status, paysasa:doctor, paysasa:mpesa:register-urls
 │   └── Testing/                    # PaymentFake, FakePaymentBuilder, FakeDriver — see 09-testing.md
 ├── tests/                          # Pest: Unit/ + Feature/
 └── Documentation/                  # This folder

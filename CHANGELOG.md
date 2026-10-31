@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`php artisan paysasa:doctor`** diagnoses the misconfigurations behind most "it doesn't work" reports, for each driver that has credentials (plus the default driver): missing settings, sandbox/production and test/live key mismatches, callback URLs a provider cannot use (not HTTPS, local or private hosts, wrong route, plain route despite an opaque alias), webhook verification that cannot succeed (missing signing secret; unsigned providers in production with no allowlist or alias), a live credential check against Daraja, Airtel, Pesapal, Stripe and Flutterwave, a side-effect-free reachability ping of your own callback URLs, and recent webhooks that failed verification. It also checks the environment (tables, routes, queue connection, cache store, TLS, scheduler, payments stuck pending). Options: `--offline`, `--no-probe`, `--json`, `--strict`; it exits non-zero on failures, so it can gate a deploy. See `Documentation/11-troubleshooting.md`.
+- `WebhookVerificationException::reason()` (with `INVALID_SIGNATURE`, `MISSING_SIGNATURE_HEADER`, `MISSING_SECRET` and `MISCONFIGURED` constants) so tooling can tell a verifier that is working from one that cannot work until configuration is fixed.
+- The webhook route answers a `paysasa:doctor` ping (a `GET` carrying an `X-Paysasa-Doctor` header with an HMAC of the route segment keyed by `APP_KEY`) before storing or verifying anything. A request with that header and a wrong token gets a `403`, and neither creates a webhook row.
+
+### Fixed
+- The README documented `php artisan paysasa:status INV-1001` (inspecting a payment); the command takes no argument and checks driver configuration.
+
 ### Removed
 - **The Paystack driver** (`PaystackDriver`, `PaystackClient`, `PaystackSignatureVerifier`), the `paystack` entry in `config/paysasa.php`, the `PaymentProvider::Paystack` case, the `/paysasa/webhooks/paystack` webhook handling, and all Paystack documentation. It never left beta, and the project is focusing on M-Pesa, Stripe and the remaining drivers.
 

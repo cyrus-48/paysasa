@@ -9,7 +9,7 @@
 - Fail-closed webhook verification, size limits, raw-body deduplication, and amount mismatch anomaly detection.
 - Self-healing reconciliation sweep (`paysasa:reconcile` and single-shot `VerifyPaymentStatusJob`).
 - Full persistence layer, event-driven lifecycle, queue-based webhook/verification processing.
-- `Payment::fake()` testing support, `paysasa:reconcile`, `paysasa:webhooks:unmatched`, `paysasa:status`, and `paysasa:mpesa:register-urls` Artisan commands.
+- `Payment::fake()` testing support, `paysasa:reconcile`, `paysasa:webhooks:unmatched`, `paysasa:status`, `paysasa:doctor`, and `paysasa:mpesa:register-urls` Artisan commands.
 - Multi-merchant credential resolution via `provider_accounts`.
 
 ## Near-term

@@ -11,10 +11,16 @@ namespace Paysasa\Payments\Exceptions;
  */
 class WebhookVerificationException extends PaymentException
 {
+    public const INVALID_SIGNATURE = 'invalid_signature';
+    public const MISSING_SIGNATURE_HEADER = 'missing_signature_header';
+    public const MISSING_SECRET = 'missing_secret';
+    public const MISCONFIGURED = 'misconfigured';
+
     public static function invalidSignature(string $provider): self
     {
         return new self("Webhook signature verification failed for provider [{$provider}].", [
             'provider' => $provider,
+            'reason' => self::INVALID_SIGNATURE,
         ]);
     }
 
@@ -23,6 +29,7 @@ class WebhookVerificationException extends PaymentException
         return new self("Webhook from [{$provider}] is missing expected signature header [{$header}].", [
             'provider' => $provider,
             'header' => $header,
+            'reason' => self::MISSING_SIGNATURE_HEADER,
         ]);
     }
 
@@ -35,6 +42,7 @@ class WebhookVerificationException extends PaymentException
     {
         return new self("Webhook verification for [{$provider}] failed closed: no signing secret is configured.", [
             'provider' => $provider,
+            'reason' => self::MISSING_SECRET,
         ]);
     }
 
@@ -42,6 +50,20 @@ class WebhookVerificationException extends PaymentException
     {
         return new self("Webhook verification for [{$provider}] is misconfigured in production (empty allowlist and non-opaque route).", [
             'provider' => $provider,
+            'reason' => self::MISCONFIGURED,
         ]);
+    }
+
+    /**
+     * Why verification failed, as one of the REASON constants (null for
+     * exceptions built by hand). Lets tooling such as `paysasa:doctor` tell
+     * "the verifier is working and rejected an unsigned request" apart from
+     * "the verifier cannot work until you fix your configuration".
+     */
+    public function reason(): ?string
+    {
+        $reason = $this->context['reason'] ?? null;
+
+        return is_string($reason) ? $reason : null;
     }
 }
