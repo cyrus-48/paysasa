@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Paysasa\Payments\Actions\RunFraudChecks;
+use Paysasa\Payments\Console\Commands\DoctorCommand;
 use Paysasa\Payments\Console\Commands\InstallCommand;
 use Paysasa\Payments\Console\Commands\RegisterMpesaUrlsCommand;
 use Paysasa\Payments\Console\Commands\StatusCommand;
@@ -68,6 +69,7 @@ class PaysasaServiceProvider extends ServiceProvider
             $this->commands([
                 InstallCommand::class,
                 StatusCommand::class,
+                DoctorCommand::class,
                 RegisterMpesaUrlsCommand::class,
                 \Paysasa\Payments\Console\Commands\ReconcilePaymentsCommand::class,
                 \Paysasa\Payments\Console\Commands\UnmatchedWebhooksCommand::class,

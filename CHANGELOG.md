@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`php artisan paysasa:doctor`** diagnoses the misconfigurations behind most "it doesn't work" reports, for each driver that has credentials (plus the default driver): missing settings, sandbox/production and test/live key mismatches, callback URLs a provider cannot use (not HTTPS, local or private hosts, wrong route, plain route despite an opaque alias), webhook verification that cannot succeed (missing signing secret; unsigned providers in production with no allowlist or alias), a live credential check against Daraja, Airtel, Pesapal, Stripe and Flutterwave, a side-effect-free reachability ping of your own callback URLs, and recent webhooks that failed verification. It also checks the environment (tables, routes, queue connection, cache store, TLS, scheduler, payments stuck pending). Options: `--offline`, `--no-probe`, `--json`, `--strict`; it exits non-zero on failures, so it can gate a deploy. See `Documentation/11-troubleshooting.md`.
+- `WebhookVerificationException::reason()` (with `INVALID_SIGNATURE`, `MISSING_SIGNATURE_HEADER`, `MISSING_SECRET` and `MISCONFIGURED` constants) so tooling can tell a verifier that is working from one that cannot work until configuration is fixed.
+- The webhook route answers a `paysasa:doctor` ping (a `GET` carrying an `X-Paysasa-Doctor` header with an HMAC of the route segment keyed by `APP_KEY`) before storing or verifying anything. A request with that header and a wrong token gets a `403`, and neither creates a webhook row.
+
 ### Fixed
 - **Airtel Money driver** — several defects that would have broken it against the real API:
   - The subscriber number is now sent without the country code (`712345678`, not `254712345678`).
@@ -16,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Payouts now RSA-encrypt the disbursement PIN (`AIRTEL_DISBURSEMENT_PIN` + `AIRTEL_PUBLIC_KEY`); they used to send `pin: null`.
   - A charge or payout whose currency differs from `AIRTEL_CURRENCY` is refused instead of being silently debited in the configured currency.
   - The enquiry path segment is URL-encoded.
+- The README documented `php artisan paysasa:status INV-1001` (inspecting a payment); the command takes no argument and checks driver configuration.
 
 ### Security
 - Airtel callbacks are now handled as the unsigned webhooks they are. The old verifier demanded an `x-signature` HMAC that Airtel does not document, so real callbacks would have been rejected. New `Verifiers\AllowlistWebhookVerifier` (also the base of the M-Pesa verifier) uses a source-IP allowlist (`AIRTEL_WEBHOOK_IP_ALLOWLIST`) and/or a secret route alias (`PAYSASA_AIRTEL_WEBHOOK_ALIAS`), and fails closed in production when neither is set. A success callback is also confirmed with Airtel's transaction enquiry before it settles a payment (`AIRTEL_CONFIRM_CALLBACKS`, default `true`), so a forged callback cannot mark a payment as paid.

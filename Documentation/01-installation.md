@@ -62,17 +62,23 @@ See [`07-webhook-guide.md`](07-webhook-guide.md) for the full per-provider webho
 ## 5. Verify everything is wired correctly
 
 ```bash
-php artisan paysasa:status
+php artisan paysasa:doctor
 ```
 
+`paysasa:doctor` checks your settings, callback URLs, webhook verification and reachability, and makes a live credential check against each provider you've configured (add `--offline` to skip the network). See [Troubleshooting](11-troubleshooting.md#start-with-the-doctor) for what it covers. (`php artisan paysasa:status` only confirms that each driver class can be resolved; it does not validate credentials, which drivers check when they are first used.)
+
+Typical output:
+
 ```
-+------------+----------------+--------+
-| Driver     | Status         | Detail |
-+------------+----------------+--------+
-| mpesa      | OK             |        |
-| stripe     | OK             |        |
-| pesapal    | MISCONFIGURED  | Driver [pesapal] is missing required configuration: consumer_key, consumer_secret. |
-+------------+----------------+--------+
+mpesa
+  ✔ credentials             All required settings are present.
+  ✔ mode                    Mode: sandbox.
+  ✔ URL (stk_callback_url)  https://shop.example.com/paysasa/webhooks/mpesa
+  ✔ webhook verification    Verifier accepts requests without a signature: authenticity rests on ...
+  ✘ credential check        The provider rejected the credentials (HTTP 400).
+      → Check that the key/secret pair belongs to this environment: sandbox keys do not work against production URLs, and vice versa.
+
+1 failure(s) ...
 ```
 
 ## 6. Start a queue worker

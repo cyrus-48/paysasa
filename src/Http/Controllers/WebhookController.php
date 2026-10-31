@@ -15,6 +15,7 @@ use Paysasa\Payments\Events\WebhookReceived;
 use Paysasa\Payments\Exceptions\WebhookVerificationException;
 use Paysasa\Payments\Jobs\DispatchWebhookJob;
 use Paysasa\Payments\Models\Webhook;
+use Paysasa\Payments\Support\Doctor\Ping;
 use Paysasa\Payments\Webhooks\WebhookDispatcher;
 
 /**
@@ -28,6 +29,14 @@ class WebhookController extends Controller
 
     public function handle(Request $request, string $provider): JsonResponse
     {
+        // `paysasa:doctor` reachability ping: answered before anything is
+        // stored or verified, and only for a caller holding the app key.
+        if ($request->headers->has(Ping::HEADER)) {
+            return Ping::isValid($provider, (string) $request->header(Ping::HEADER))
+                ? response()->json(['paysasa_doctor' => true, 'route' => $provider])
+                : response()->json(['message' => 'Invalid doctor token'], 403);
+        }
+
         $maxBodyBytes = (int) config('paysasa.webhooks.max_body_bytes', 65536);
         $rawBody = $request->getContent();
 

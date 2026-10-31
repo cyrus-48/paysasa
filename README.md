@@ -161,8 +161,11 @@ php artisan paysasa:reconcile
 # View unmatched webhook callbacks needing investigation
 php artisan paysasa:webhooks:unmatched
 
-# Inspect the status and history of a specific payment reference
-php artisan paysasa:status INV-1001
+# Diagnose configuration, callback URLs, webhook reachability and credentials for each enabled driver
+php artisan paysasa:doctor
+
+# Confirm every configured driver class resolves (does not validate credentials; use paysasa:doctor for that)
+php artisan paysasa:status
 
 # Register M-Pesa C2B validation and confirmation URLs with Safaricom
 php artisan paysasa:mpesa:register-urls
