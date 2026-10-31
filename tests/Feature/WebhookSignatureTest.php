@@ -83,18 +83,18 @@ it('rejects an HMAC-header webhook signed with an empty key when no secret is co
     $body = '{"transaction":{"id":"1"}}';
     $forged = hash_hmac('sha256', $body, '');
 
-    $payload = new WebhookPayload(PaymentProvider::Airtel, ['x-signature' => [$forged]], $body, []);
+    $payload = new WebhookPayload(PaymentProvider::PesaLink, ['x-signature' => [$forged]], $body, []);
 
-    (new HmacHeaderSignatureVerifier('airtel', ''))->verify($payload);
+    (new HmacHeaderSignatureVerifier('pesalink', ''))->verify($payload);
 })->throws(WebhookVerificationException::class, 'no signing secret');
 
 it('accepts a valid HMAC-header webhook when the secret is configured', function () {
     $body = '{"transaction":{"id":"1"}}';
-    $signature = hash_hmac('sha256', $body, 'airtel-secret');
+    $signature = hash_hmac('sha256', $body, 'pesalink-secret');
 
-    $payload = new WebhookPayload(PaymentProvider::Airtel, ['x-signature' => [$signature]], $body, []);
+    $payload = new WebhookPayload(PaymentProvider::PesaLink, ['x-signature' => [$signature]], $body, []);
 
-    (new HmacHeaderSignatureVerifier('airtel', 'airtel-secret'))->verify($payload);
+    (new HmacHeaderSignatureVerifier('pesalink', 'pesalink-secret'))->verify($payload);
 })->throwsNoExceptions();
 
 it('accepts a Stripe webhook when any one of several v1 signatures matches (secret rotation)', function () {

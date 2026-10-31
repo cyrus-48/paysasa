@@ -23,9 +23,10 @@ The route accepts both `GET` and `POST` (Pesapal's IPN can be either, depending 
 | Stripe | `Stripe-Signature: t=...,v1=HMAC-SHA256("{t}.{body}", secret)`, ±5min replay window | `Verifiers\StripeSignatureVerifier` |
 | Flutterwave | `verif-hash` header, constant-time equality against dashboard-configured secret | `Verifiers\FlutterwaveSignatureVerifier` |
 | Pesapal | No signature; re-verifies server-to-server via `GetTransactionStatus` | `Verifiers\PesapalSignatureVerifier` |
-| Airtel / PesaLink | `HMAC-SHA256(body, webhook_secret)` in a configurable header | `Verifiers\HmacHeaderSignatureVerifier` |
+| PesaLink | `HMAC-SHA256(body, webhook_secret)` in a configurable header | `Verifiers\HmacHeaderSignatureVerifier` |
+| Airtel Money | Unsigned: source-IP allowlist and/or secret route alias (required in production), plus enquiry confirmation of success callbacks | `Verifiers\AllowlistWebhookVerifier` |
 
-> **Secrets fail closed.** The Stripe, Flutterwave and Airtel/PesaLink verifiers refuse every request while their secret is unset or empty (they throw `WebhookVerificationException::missingSecret()` and the endpoint answers `401`). This is deliberate: HMAC with an empty key is still a valid HMAC, so an unset secret would otherwise let anyone forge a "valid" webhook. Set `STRIPE_WEBHOOK_SECRET`, `FLUTTERWAVE_WEBHOOK_SECRET_HASH`, `AIRTEL_WEBHOOK_SECRET` / `PESALINK_WEBHOOK_SECRET` for each provider you accept webhooks from.
+> **Secrets fail closed.** The Stripe, Flutterwave and PesaLink verifiers refuse every request while their secret is unset or empty (they throw `WebhookVerificationException::missingSecret()` and the endpoint answers `401`). This is deliberate: HMAC with an empty key is still a valid HMAC, so an unset secret would otherwise let anyone forge a "valid" webhook. Set `STRIPE_WEBHOOK_SECRET`, `FLUTTERWAVE_WEBHOOK_SECRET_HASH`, `PESALINK_WEBHOOK_SECRET` for each provider you accept webhooks from.
 
 Every verifier throws `Exceptions\WebhookVerificationException` on failure, which `WebhookController` catches and turns into a `401` plus a `webhooks` row with `status = verification_failed` — **never** a silent drop, since that row is your evidence trail if you're ever investigating a spoofing attempt.
 

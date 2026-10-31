@@ -140,7 +140,7 @@ Paysasa also emits events when unexpected conditions occur:
 |---|---|---|---|
 | `mpesa` | Mobile Money | **Stable** | STK Push, C2B, B2C, reversals, balance inquiries |
 | `stripe` | Cards | **Stable** | PaymentIntents, direct charges, refunds, captures |
-| `airtel` | Mobile Money | **Beta** | USSD push, collections, refunds |
+| `airtel` | Mobile Money | **Beta** | USSD push, collections, full refunds, payouts |
 | `pesapal` | Cards | **Beta** | Hosted checkout, IPN callbacks |
 | `flutterwave` | Cards | **Beta** | Standard charges, webhook verification |
 | `pesalink` | Banking | **Experimental** | Account transfers, banking rails (bring your own bank) |

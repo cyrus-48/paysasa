@@ -12,6 +12,9 @@ use Paysasa\Payments\Exceptions\ProviderApiException;
 /** OAuth2 client-credentials token acquisition for the Airtel Money OpenAPI (POST /auth/oauth2/token). */
 class AirtelAuthenticator implements TokenProvider
 {
+    /** Used only when Airtel's response carries no usable `expires_in`. */
+    private const FALLBACK_TTL_SECONDS = 120;
+
     public function __construct(
         protected string $baseUrl,
         protected string $clientId,
@@ -26,17 +29,40 @@ class AirtelAuthenticator implements TokenProvider
 
     public function token(): string
     {
-        return Cache::remember($this->cacheKey(), now()->addMinutes(50), fn () => $this->fetchToken());
+        $cached = Cache::get($this->cacheKey());
+
+        if (is_string($cached) && $cached !== '') {
+            return $cached;
+        }
+
+        return $this->fetchAndCache();
     }
 
     public function forceRefresh(): string
     {
         Cache::forget($this->cacheKey());
 
-        return $this->token();
+        return $this->fetchAndCache();
     }
 
-    protected function fetchToken(): string
+    /**
+     * Cache for the lifetime Airtel reports (minus a safety margin) rather than
+     * a fixed guess: token lifetimes differ between environments and a token
+     * cached past its expiry turns every call into a 401.
+     */
+    protected function fetchAndCache(): string
+    {
+        [$token, $expiresIn] = $this->fetchToken();
+
+        $ttl = $expiresIn > 0 ? max(30, $expiresIn - 60) : self::FALLBACK_TTL_SECONDS;
+
+        Cache::put($this->cacheKey(), $token, now()->addSeconds($ttl));
+
+        return $token;
+    }
+
+    /** @return array{0: string, 1: int} the access token and its reported lifetime in seconds */
+    protected function fetchToken(): array
     {
         $response = Http::baseUrl($this->baseUrl)->timeout(15)->post('/auth/oauth2/token', [
             'client_id' => $this->clientId,
@@ -52,6 +78,16 @@ class AirtelAuthenticator implements TokenProvider
             );
         }
 
-        return $response->json('access_token');
+        $token = $response->json('access_token');
+
+        if (! is_string($token) || $token === '') {
+            throw new ProviderApiException(
+                'Airtel Money OAuth response did not contain an access_token.',
+                $response->status(),
+                $response->json(),
+            );
+        }
+
+        return [$token, (int) $response->json('expires_in')];
     }
 }
