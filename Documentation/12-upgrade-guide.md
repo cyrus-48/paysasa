@@ -24,6 +24,15 @@ php artisan migrate
 
 Always diff a freshly-published `config/paysasa.php` against your own before force-overwriting — new provider config blocks or settings are additive, but a `--force` publish replaces the whole file.
 
+### Upgrading to 0.10
+
+0.10 is a minor release, but pre-1.0 it carries two breaking changes for specific drivers. Check both before you `composer update`:
+
+- **Paystack removed.** See the 1.0 driver-removal note below: archive any `provider = 'paystack'` rows *before* upgrading, or those payments can no longer be loaded.
+- **Airtel Money callbacks.** `drivers.airtel.webhook_secret` / `AIRTEL_WEBHOOK_SECRET` and `public_key_id` are removed: Airtel's callbacks carry no signature Paysasa can verify, so the old HMAC check could never pass against real callbacks. In production the Airtel webhook endpoint now **refuses every request** until you set `AIRTEL_WEBHOOK_IP_ALLOWLIST` (comma-separated source IPs) and/or receive callbacks on a secret route alias (`PAYSASA_AIRTEL_WEBHOOK_ALIAS`, then register `/paysasa/webhooks/{alias}` with Airtel). A claimed success is also confirmed with Airtel's transaction enquiry before it settles a payment (`AIRTEL_CONFIRM_CALLBACKS`, default `true`). Payouts additionally need `AIRTEL_DISBURSEMENT_PIN` and `AIRTEL_PUBLIC_KEY`, and refunds are full-only.
+
+After upgrading, run `php artisan paysasa:doctor`: it flags exactly these kinds of gaps (an unsigned provider in production with no allowlist or alias, missing keys, credentials the provider rejects).
+
 ## Upgrading between major versions
 
 Each major version ships an `UPGRADE-{version}.md` at the package root (not yet applicable — this is the 1.0 baseline) with:
