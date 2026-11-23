@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Raised dependency floors past published advisories**, so Composer can no longer resolve a known-vulnerable version for an application that installs Paysasa:
+  - `nesbot/carbon` `^2.72.6|^3.8.4` (arbitrary file include via `Carbon::setLocale`, CVE-2025-22145).
+  - `guzzlehttp/guzzle` `^7.15.2` (host-validation bypass CVE-2026-69246, cookie-scope and redirect issues CVE-2026-69245, -67353, -67354, -67355, -59883, -55767, `Proxy-Authorization` leak CVE-2026-67339, silent HTTPS-proxy downgrade CVE-2026-55568).
+  - `illuminate/*` `^12.71|^13.40` (including the `TokenGuard` authentication bypass CVE-2026-114509, the relationship-include data-destruction issue CVE-2026-114508, the debug-page XSS CVE-2026-102279 and the concurrency task-output injection CVE-2026-128083).
+  - Dev: `phpunit/phpunit` `^10.5.62|^11.5.50|^12.5.8` (unsafe deserialization in the PHPT runner, CVE-2026-24765).
+
+  Paysasa's own code does not use `TokenGuard`, the JSON:API resources, Carbon locales from user input or Guzzle's redirect/cookie handling in a way these flaws reach; the floors protect the host applications that install it.
+- Removed the `config.audit.ignore` block from `composer.json`: it only suppressed advisories already excluded by the old constraints, and an ignore list hides new findings.
+- New `audit` workflow runs `composer audit` weekly and when `composer.json` changes, against both the newest and the lowest allowed runtime dependencies. Added Dependabot configuration for Composer and GitHub Actions.
+- `SECURITY.md` now states the supported versions correctly.
+
 ## [0.10.0] - 2026-10-31
 
 ### Added
