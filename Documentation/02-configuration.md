@@ -4,7 +4,7 @@ All configuration lives in `config/paysasa.php` after publishing. Every value is
 
 ## Laravel and dependency version floors
 
-`composer.json` constrains the `illuminate/*` packages to `^12.71|^13.40`, `guzzlehttp/guzzle` to `^7.15.2` and `nesbot/carbon` to `^2.72.6|^3.8.4`. These are not "latest at the time" numbers: each floor is the first release that contains the fix for the newest published security advisory affecting that package (see the Security section of the [CHANGELOG](../CHANGELOG.md)), so Composer can never resolve a known-vulnerable version for an application that installs Paysasa. There is nothing to configure; just don't loosen the floors when editing `composer.json` yourself, and keep your own application's `laravel/framework` requirement at or above them.
+`composer.json` constrains the `illuminate/*` packages to `^12.73|^13.43`, `guzzlehttp/guzzle` to `^7.17|^8.6`, `nesbot/carbon` to `^2.73|^3.15.1` and `ramsey/uuid` to `^4.10`. Each minimum is the latest release of that line when it was last reviewed, which contains the fixes for every security advisory published against it at the time (see the Security section of the [CHANGELOG](../CHANGELOG.md)), so Composer can never resolve a known-vulnerable version for an application that installs Paysasa. There is nothing to configure; just don't loosen the floors when editing `composer.json` yourself, and keep your own application's `laravel/framework` requirement at or above them.
 
 Laravel 11 is not supported: it stopped receiving security fixes on 12 March 2026, so advisories published after that date are not fixed there. Upgrade to Laravel 12 or 13.
 

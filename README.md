@@ -24,7 +24,7 @@ This README is the quickstart and overview. The comprehensive architecture speci
 ## Requirements
 
 - PHP 8.2+
-- Laravel 12.x (12.71+) or 13.x (13.40+). Laravel 11 no longer receives security fixes from the Laravel team, so it is not supported; see [Security](SECURITY.md)
+- Laravel 12.x (12.73+) or 13.x (13.43+). Laravel 11 no longer receives security fixes from the Laravel team, so it is not supported; see [Security](SECURITY.md)
 - Database: MySQL 8.0+, PostgreSQL 13+, or SQLite 3.35+
 - A queue worker for asynchronous webhook and verification processing (`php artisan queue:work`)
 
