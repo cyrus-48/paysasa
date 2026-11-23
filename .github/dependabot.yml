@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: weekly
+    # This is a library: only raise a minimum version when an advisory or
+    # an incompatibility requires it, rather than on every release.
+    versioning-strategy: increase-if-necessary
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [dependencies]

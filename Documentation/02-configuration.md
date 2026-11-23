@@ -2,11 +2,13 @@
 
 All configuration lives in `config/paysasa.php` after publishing. Every value is `env()`-backed so `.env` is the normal place to set it per-environment.
 
-## Laravel 13
+## Laravel and dependency version floors
 
-`composer.json` constrains `illuminate/support`, `illuminate/database`, `illuminate/queue`, and `illuminate/http` to `^11.0|^12.0|^13.12` — note the `13.12` floor rather than a plain `^13.0`. Every `laravel/framework` release between `13.0.0` and `13.11.x` is affected by at least one of three published security advisories (a signed-URL path-confusion issue fixed in 13.12.0, and a CRLF-injection issue in the email validation rule fixed in 13.10.0 — see `composer.json`'s `config.audit.ignore` block for the advisory IDs and reasoning). Requiring `^13.12` means Composer will never resolve an affected version for the 13.x line; there's nothing to configure here, just don't loosen that floor when upgrading `composer.json` yourself.
+`composer.json` constrains the `illuminate/*` packages to `^12.73|^13.43`, `guzzlehttp/guzzle` to `^7.17|^8.6`, `nesbot/carbon` to `^2.73|^3.15.1` and `ramsey/uuid` to `^4.10`. Each minimum is the latest release of that line when it was last reviewed, which contains the fixes for every security advisory published against it at the time (see the Security section of the [CHANGELOG](../CHANGELOG.md)), so Composer can never resolve a known-vulnerable version for an application that installs Paysasa. There is nothing to configure; just don't loosen the floors when editing `composer.json` yourself, and keep your own application's `laravel/framework` requirement at or above them.
 
-If your own project's `composer audit`/CI still flags those three advisory IDs, that's because `audit.ignore` in composer.json only suppresses them for *this package's* resolution — copy the same `config.audit.ignore` block (or just make sure your own `laravel/framework` requirement is `^13.12` too) so your project-level audit isn't flagging a version range you can't actually land on anyway.
+Laravel 11 is not supported: it stopped receiving security fixes on 12 March 2026, so advisories published after that date are not fixed there. Upgrade to Laravel 12 or 13.
+
+The repository's `audit` workflow runs `composer audit` weekly, against both the newest and the *oldest* versions the constraints allow, so a new advisory (or a floor that has fallen behind) shows up without waiting for a push.
 
 ## Global settings
 

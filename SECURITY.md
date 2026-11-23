@@ -2,10 +2,16 @@
 
 ## Supported Versions
 
+Security fixes are released for the latest minor version only. Paysasa is pre-1.0, so upgrade to the newest `0.x` release to receive fixes.
+
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.x     | :white_check_mark: |
-| < 1.0   | :white_check_mark: |
+| 0.10.x  | :white_check_mark: |
+| < 0.10  | :x:                |
+
+## Dependencies
+
+`composer.json` sets minimum versions of Laravel (`illuminate/*`), Guzzle and Carbon above the releases affected by published security advisories, so Composer cannot resolve a known-vulnerable version of them for an application that installs Paysasa. The `audit` workflow runs `composer audit` weekly against both the newest and the *oldest* allowed versions, and Dependabot proposes updates. Only Laravel versions that still receive security fixes from the Laravel team are supported (see https://laravel.com/docs/releases).
 
 ## Reporting a Vulnerability
 

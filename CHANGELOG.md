@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Raised dependency floors to the latest patched releases**, so Composer can no longer resolve a known-vulnerable version for an application that installs Paysasa:
+  - `illuminate/*` `^12.73|^13.43`, including the fixes for the `TokenGuard` authentication bypass (CVE-2026-114509), the relationship-include data-destruction issue (CVE-2026-114508), the debug-page XSS (CVE-2026-102279), the concurrency task-output injection (CVE-2026-128083), the email-rule CRLF injection and the signed-URL path confusion.
+  - `guzzlehttp/guzzle` `^7.17|^8.6` (host-validation bypass CVE-2026-69246, cookie-scope and redirect issues CVE-2026-69245, -67353, -67354, -67355, -59883, -55767, `Proxy-Authorization` leak CVE-2026-67339, silent HTTPS-proxy downgrade CVE-2026-55568). Guzzle 8 is now allowed, as Laravel 13's HTTP client allows it.
+  - `nesbot/carbon` `^2.73|^3.15.1` (arbitrary file include via `Carbon::setLocale`, CVE-2025-22145).
+  - `ramsey/uuid` `^4.10`.
+  - Dev: `phpunit/phpunit` `^10.5.67|^11.5.58|^12.5.45` (unsafe deserialization in the PHPT runner, CVE-2026-24765).
+
+  Paysasa's own code does not use `TokenGuard`, the JSON:API resources, Carbon locales from user input or Guzzle's redirect/cookie handling in a way these flaws reach; the floors protect the host applications that install it.
+- Removed the `config.audit.ignore` block from `composer.json`: it only suppressed advisories already excluded by the old constraints, and an ignore list hides new findings.
+- New `audit` workflow runs `composer audit` weekly and when `composer.json` changes, against both the newest and the lowest allowed runtime dependencies. Added Dependabot configuration for Composer and GitHub Actions.
+- `SECURITY.md` now states the supported versions correctly.
+
+### Removed
+- **Laravel 11 support** (`illuminate/*` is now `^12.73|^13.43`, Testbench 9 dropped from the dev requirements and CI). Laravel 11 stopped receiving security fixes on 12 March 2026, so advisories published since, such as the `TokenGuard` authentication bypass (CVE-2026-114509) and the concurrency task-output injection (CVE-2026-128083), are not fixed on 11.x with the patch levels Paysasa could require. **Upgrade note (breaking for Laravel 11 apps):** upgrade the application to Laravel 12 or 13 before updating Paysasa.
+
+### Fixed
+- CI matrix: Laravel 13 requires PHP 8.3, so the PHP 8.2 / Laravel 13 combination is excluded instead of failing at dependency resolution.
+
 ## [0.10.0] - 2026-10-31
 
 ### Added

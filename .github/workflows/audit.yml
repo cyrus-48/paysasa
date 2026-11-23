@@ -1,0 +1,47 @@
+name: audit
+
+# Catches newly published advisories between pushes, and proves that the
+# *lowest* versions composer.json still allows are clean, not just the latest.
+
+on:
+  schedule:
+    - cron: '17 5 * * 1' # Mondays 05:17 UTC
+  push:
+    branches: [main]
+    paths: [composer.json, .github/workflows/audit.yml]
+  pull_request:
+    branches: [main]
+    paths: [composer.json, .github/workflows/audit.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Runtime floor: the oldest dependencies a consumer can resolve.
+          - { name: lowest runtime, update: '--prefer-lowest --no-dev', audit: '--no-dev' }
+          # Everything, newest allowed, including dev tooling.
+          - { name: latest, update: '--prefer-stable', audit: '' }
+
+    name: audit (${{ matrix.name }})
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Resolve dependencies
+        run: composer update ${{ matrix.update }} --prefer-dist --no-interaction
+
+      - name: Security audit
+        run: composer audit ${{ matrix.audit }}

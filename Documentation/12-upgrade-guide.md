@@ -24,6 +24,11 @@ php artisan migrate
 
 Always diff a freshly-published `config/paysasa.php` against your own before force-overwriting — new provider config blocks or settings are additive, but a `--force` publish replaces the whole file.
 
+### Upgrading from 0.10 to the next release (unreleased)
+
+- **Laravel 11 is no longer supported.** `illuminate/*` now requires `^12.73|^13.43` (Laravel 11 stopped receiving security fixes on 12 March 2026). Upgrade your application to Laravel 12 or 13 first; `composer update cyrus-48/paysasa` on a Laravel 11 application will fail to resolve.
+- Dependency floors were raised (`guzzlehttp/guzzle` `^7.17|^8.6`, `nesbot/carbon` `^2.73|^3.15.1`, `ramsey/uuid` `^4.10`) so that no known-vulnerable version can be installed. No code changes are needed; a plain `composer update` picks them up.
+
 ### Upgrading to 0.10
 
 0.10 is a minor release, but pre-1.0 it carries two breaking changes for specific drivers. Check both before you `composer update`:

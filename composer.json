@@ -21,29 +21,29 @@
     ],
     "require": {
         "php": "^8.2",
-        "illuminate/bus": "^11.0|^12.0|^13.12",
-        "illuminate/cache": "^11.0|^12.0|^13.12",
-        "illuminate/console": "^11.0|^12.0|^13.12",
-        "illuminate/database": "^11.0|^12.0|^13.12",
-        "illuminate/events": "^11.0|^12.0|^13.12",
-        "illuminate/http": "^11.0|^12.0|^13.12",
-        "illuminate/queue": "^11.0|^12.0|^13.12",
-        "illuminate/routing": "^11.0|^12.0|^13.12",
-        "illuminate/support": "^11.0|^12.0|^13.12",
-        "guzzlehttp/guzzle": "^7.8",
-        "ramsey/uuid": "^4.7",
-        "nesbot/carbon": "^2.72|^3.0"
+        "illuminate/bus": "^12.73|^13.43",
+        "illuminate/cache": "^12.73|^13.43",
+        "illuminate/console": "^12.73|^13.43",
+        "illuminate/database": "^12.73|^13.43",
+        "illuminate/events": "^12.73|^13.43",
+        "illuminate/http": "^12.73|^13.43",
+        "illuminate/queue": "^12.73|^13.43",
+        "illuminate/routing": "^12.73|^13.43",
+        "illuminate/support": "^12.73|^13.43",
+        "guzzlehttp/guzzle": "^7.17|^8.6",
+        "ramsey/uuid": "^4.10",
+        "nesbot/carbon": "^2.73|^3.15.1"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.51",
         "larastan/larastan": "^2.9|^3.0",
-        "laravel/framework": "^11.0|^12.0|^13.12",
+        "laravel/framework": "^12.73|^13.43",
         "mockery/mockery": "^1.6",
-        "orchestra/testbench-core": "^9.0|^10.0|^11.0",
+        "orchestra/testbench-core": "^10.0|^11.0",
         "pestphp/pest": "^2.34|^3.0|^4.0",
         "pestphp/pest-plugin-laravel": "^2.4|^3.0|^4.0",
         "phpstan/phpstan": "^1.10|^2.0",
-        "phpunit/phpunit": "^10.5|^11.0|^12.0"
+        "phpunit/phpunit": "^10.5.67|^11.5.58|^12.5.45"
     },
     "suggest": {
         "stripe/stripe-php": "Required if you use the Stripe driver's SDK-backed features (paysasa also ships a raw-HTTP fallback client)."
@@ -78,13 +78,6 @@
         "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true
-        },
-        "audit": {
-            "ignore": {
-                "PKSA-m5cs-t1y6-qpcs": "Signed URL path confusion, fixed in laravel/framework 13.12.0 — our illuminate/* constraint already requires ^13.12 as the minimum 13.x version.",
-                "PKSA-3r5d-mb8f-1qw9": "CRLF injection in the email validation rule, fixed in laravel/framework 13.10.0 — already excluded by our ^13.12 minimum.",
-                "PKSA-mdq4-51ck-6kdq": "Same CRLF injection issue (duplicate advisory source), fixed in laravel/framework 13.10.0 — already excluded by our ^13.12 minimum."
-            }
         }
     },
     "minimum-stability": "stable",
