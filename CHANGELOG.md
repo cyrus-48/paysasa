@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New `audit` workflow runs `composer audit` weekly and when `composer.json` changes, against both the newest and the lowest allowed runtime dependencies. Added Dependabot configuration for Composer and GitHub Actions.
 - `SECURITY.md` now states the supported versions correctly.
 
+### Removed
+- **Laravel 11 support** (`illuminate/*` is now `^12.71|^13.40`, Testbench 9 dropped from the dev requirements and CI). Laravel 11 stopped receiving security fixes on 12 March 2026, so advisories published since, such as the `TokenGuard` authentication bypass (CVE-2026-114509) and the concurrency task-output injection (CVE-2026-128083), are not fixed on 11.x with the patch levels Paysasa could require. **Upgrade note (breaking for Laravel 11 apps):** upgrade the application to Laravel 12 or 13 before updating Paysasa.
+
+### Fixed
+- CI matrix: Laravel 13 requires PHP 8.3, so the PHP 8.2 / Laravel 13 combination is excluded instead of failing at dependency resolution.
+
 ## [0.10.0] - 2026-10-31
 
 ### Added
