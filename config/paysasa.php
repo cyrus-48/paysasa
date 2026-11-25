@@ -249,8 +249,8 @@ return [
             'public_key' => env('AIRTEL_PUBLIC_KEY'),
             // Airtel hosts differ by country (e.g. openapi.airtel.africa, openapi.airtelkenya.com), so both are overridable.
             'base_urls' => [
-                'sandbox' => env('AIRTEL_SANDBOX_URL', 'https://openapiuat.airtel.africa'),
-                'production' => env('AIRTEL_PRODUCTION_URL', 'https://openapi.airtel.africa'),
+                'sandbox' => env('AIRTEL_SANDBOX_URL') ?: 'https://openapiuat.airtel.africa',
+                'production' => env('AIRTEL_PRODUCTION_URL') ?: 'https://openapi.airtel.africa',
             ],
             // API paths. Airtel versions these per market and product (collections are /merchant/v1/ in most
             // client libraries and /merchant/v2/ in some guides), so verify against your sandbox and override if needed.
