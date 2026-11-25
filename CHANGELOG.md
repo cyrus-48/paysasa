@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-25
+
 ### Security
 - **Raised dependency floors to the latest patched releases**, so Composer can no longer resolve a known-vulnerable version for an application that installs Paysasa:
   - `illuminate/*` `^12.73|^13.43`, including the fixes for the `TokenGuard` authentication bypass (CVE-2026-114509), the relationship-include data-destruction issue (CVE-2026-114508), the debug-page XSS (CVE-2026-102279), the concurrency task-output injection (CVE-2026-128083), the email-rule CRLF injection and the signed-URL path confusion.

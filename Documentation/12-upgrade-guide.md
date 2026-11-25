@@ -24,10 +24,12 @@ php artisan migrate
 
 Always diff a freshly-published `config/paysasa.php` against your own before force-overwriting — new provider config blocks or settings are additive, but a `--force` publish replaces the whole file.
 
-### Upgrading from 0.10 to the next release (unreleased)
+### Upgrading to 0.11
 
 - **Laravel 11 is no longer supported.** `illuminate/*` now requires `^12.73|^13.43` (Laravel 11 stopped receiving security fixes on 12 March 2026). Upgrade your application to Laravel 12 or 13 first; `composer update cyrus-48/paysasa` on a Laravel 11 application will fail to resolve.
 - Dependency floors were raised (`guzzlehttp/guzzle` `^7.17|^8.6`, `nesbot/carbon` `^2.73|^3.15.1`, `ramsey/uuid` `^4.10`) so that no known-vulnerable version can be installed. No code changes are needed; a plain `composer update` picks them up.
+- **Airtel disbursements now use `/standard/v2/disbursements/`** (v1 before). If you rely on the v1 endpoint, set `AIRTEL_DISBURSEMENT_PATH=/standard/v1/disbursements/`. The collection path (`AIRTEL_COLLECTION_PATH`) and the Airtel hosts (`AIRTEL_SANDBOX_URL`, `AIRTEL_PRODUCTION_URL`) are now configurable too; see `Documentation/02-configuration.md`. Verify both paths in your Airtel sandbox before going live.
+- Run `php artisan vendor:publish --tag=paysasa-config` only if you want the new `paths` and host keys in your published config; the defaults apply without it.
 
 ### Upgrading to 0.10
 
