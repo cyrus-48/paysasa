@@ -60,7 +60,13 @@ class AirtelMoneyDriver extends AbstractDriver implements ConfirmsCallbacks, Pay
 
         $auth = new AirtelAuthenticator($this->baseUrl(), $this->config['client_id'], $this->config['client_secret']);
 
-        return $this->client = new AirtelClient($this->baseUrl(), $auth, $this->configuredCountry(), $this->configuredCurrency());
+        return $this->client = new AirtelClient(
+            $this->baseUrl(),
+            $auth,
+            $this->configuredCountry(),
+            $this->configuredCurrency(),
+            (array) ($this->config['paths'] ?? []),
+        );
     }
 
     public function charge(ChargeRequest $request): PaymentResponse
@@ -81,7 +87,7 @@ class AirtelMoneyDriver extends AbstractDriver implements ConfirmsCallbacks, Pay
         ]);
 
         if (! ($result['status']['success'] ?? false)) {
-            return PaymentResponse::makeFailed($this->provider(), message: $result['status']['message'] ?? 'Collection request rejected', rawResponse: $result);
+            return PaymentResponse::makeFailed($this->provider(), message: $this->failureMessage($result, 'Collection request rejected'), rawResponse: $result);
         }
 
         return PaymentResponse::makePending(
@@ -129,7 +135,7 @@ class AirtelMoneyDriver extends AbstractDriver implements ConfirmsCallbacks, Pay
 
         return ($result['status']['success'] ?? false)
             ? PaymentResponse::makePending($this->provider(), null, $result['data']['transaction']['id'] ?? $transactionId, 'Disbursement accepted', $result)
-            : PaymentResponse::makeFailed($this->provider(), message: $result['status']['message'] ?? 'Disbursement rejected', rawResponse: $result);
+            : PaymentResponse::makeFailed($this->provider(), message: $this->failureMessage($result, 'Disbursement rejected'), rawResponse: $result);
     }
 
     /**
@@ -161,7 +167,7 @@ class AirtelMoneyDriver extends AbstractDriver implements ConfirmsCallbacks, Pay
             refundId: $result['data']['transaction']['id'] ?? $result['data']['transaction']['airtel_money_id'] ?? null,
             providerReference: $request->providerReference,
             amount: $request->amount,
-            message: $result['status']['message'] ?? null,
+            message: $success ? ($result['status']['message'] ?? null) : $this->failureMessage($result, 'Refund rejected'),
             rawResponse: $result,
         );
     }
@@ -200,13 +206,35 @@ class AirtelMoneyDriver extends AbstractDriver implements ConfirmsCallbacks, Pay
             && $callback->providerReference !== '';
     }
 
+    /**
+     * Airtel reports business failures as HTTP 200 with `status.success: false`,
+     * a message and a result code (e.g. ESB000014 for insufficient funds); keep
+     * the code in the message so it can be looked up.
+     *
+     * @param array<string, mixed> $result
+     */
+    private function failureMessage(array $result, string $default): string
+    {
+        $message = $result['status']['message'] ?? null;
+        $message = is_string($message) && $message !== '' ? $message : $default;
+
+        $code = $result['status']['result_code'] ?? $result['status']['code'] ?? null;
+
+        // `code` is often just the HTTP status ("200"); only a real result code is worth showing.
+        if (is_string($code) && $code !== '' && ! preg_match('/^\d{3}$/', $code)) {
+            return "[{$code}] {$message}";
+        }
+
+        return $message;
+    }
+
     private function mapStatus(mixed $code): PaymentStatus
     {
         return match (is_string($code) ? strtoupper($code) : null) {
             'TS' => PaymentStatus::Successful,
             'TF' => PaymentStatus::Failed,
             'TE' => PaymentStatus::Expired,
-            default => PaymentStatus::Pending, // TIP (in progress), TA (ambiguous), unknown
+            default => PaymentStatus::Pending, // TIP/TI (in progress), TA (ambiguous), unknown
         };
     }
 

@@ -32,6 +32,7 @@ use Paysasa\Payments\Models\Payment as PaymentModel;
 use Paysasa\Payments\Models\Refund;
 use Paysasa\Payments\Models\Webhook;
 use Paysasa\Payments\Services\Airtel\AirtelAuthenticator;
+use Paysasa\Payments\Services\Airtel\AirtelClient;
 use Paysasa\Payments\Webhooks\Verifiers\AllowlistWebhookVerifier;
 
 const AIRTEL_BASE = 'openapiuat.airtel.africa';
@@ -444,7 +445,7 @@ it('RSA-encrypts the disbursement PIN with the configured public key', function 
     config()->set('paysasa.drivers.airtel.disbursement_pin', '4321');
     config()->set('paysasa.drivers.airtel.public_key', $bare);
 
-    fakeAirtel(['/standard/v1/disbursements/' => Http::response([
+    fakeAirtel(['/standard/v2/disbursements/' => Http::response([
         'data' => ['transaction' => ['id' => 'DISB_1']],
         'status' => ['code' => '200', 'success' => true, 'message' => 'Accepted'],
     ])]);
@@ -454,7 +455,7 @@ it('RSA-encrypts the disbursement PIN with the configured public key', function 
     expect($response->pending())->toBeTrue()
         ->and($response->providerReference)->toBe('DISB_1');
 
-    $sent = Http::recorded(fn (Request $request) => str_ends_with($request->url(), '/standard/v1/disbursements/'))->first()[0];
+    $sent = Http::recorded(fn (Request $request) => str_ends_with($request->url(), '/standard/v2/disbursements/'))->first()[0];
 
     expect($sent->data()['payee']['msisdn'])->toBe('712345678');
 
@@ -468,7 +469,7 @@ it('fails a payout Airtel rejects', function () {
     config()->set('paysasa.drivers.airtel.disbursement_pin', '4321');
     config()->set('paysasa.drivers.airtel.public_key', openssl_pkey_get_details($key)['key']);
 
-    fakeAirtel(['/standard/v1/disbursements/' => Http::response(['status' => ['success' => false, 'message' => 'Wrong PIN']])]);
+    fakeAirtel(['/standard/v2/disbursements/' => Http::response(['status' => ['success' => false, 'message' => 'Wrong PIN']])]);
 
     $response = airtelDriver()->payout(airtelPayoutRequest());
 
@@ -534,4 +535,74 @@ it('refreshes the token and retries once when Airtel answers 401', function () {
     expect($enquiries)->toHaveCount(2)
         ->and($enquiries[0][0]->header('Authorization'))->toBe(['Bearer stale-token'])
         ->and($enquiries[1][0]->header('Authorization'))->toBe(['Bearer fresh-token']);
+});
+
+// ---------------------------------------------------------------- paths, error detail
+
+it('uses the v2 disbursement path by default and the v1 collection path', function () {
+    expect(AirtelClient::DEFAULT_PATHS['disbursement'])->toBe('/standard/v2/disbursements/')
+        ->and(AirtelClient::DEFAULT_PATHS['collection'])->toBe('/merchant/v1/payments/');
+});
+
+it('lets the collection and disbursement paths be overridden from config', function () {
+    Queue::fake([VerifyPaymentStatusJob::class]);
+    config()->set('paysasa.drivers.airtel.paths.collection', '/merchant/v2/payments/');
+
+    fakeAirtel(['/merchant/v2/payments/' => Http::response([
+        'data' => ['transaction' => ['id' => 'AIR_TXN_2', 'status' => 'Success']],
+        'status' => ['code' => '200', 'success' => true, 'message' => 'Success'],
+    ])]);
+
+    $response = Payment::driver('airtel')->amount(2500)->currency('KES')->phone('0712345678')->reference('AIR2')->charge();
+
+    expect($response->pending())->toBeTrue();
+
+    Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/merchant/v2/payments/'));
+    Http::assertNotSent(fn (Request $request) => str_ends_with($request->url(), '/merchant/v1/payments/'));
+});
+
+it('ignores blank path overrides and keeps the defaults', function () {
+    Queue::fake([VerifyPaymentStatusJob::class]);
+    config()->set('paysasa.drivers.airtel.paths.collection', '');
+
+    fakeAirtel(['/merchant/v1/payments/' => Http::response([
+        'data' => ['transaction' => ['id' => 'AIR_TXN_3', 'status' => 'Success']],
+        'status' => ['code' => '200', 'success' => true, 'message' => 'Success'],
+    ])]);
+
+    Payment::driver('airtel')->amount(2500)->currency('KES')->phone('0712345678')->reference('AIR3')->charge();
+
+    Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/merchant/v1/payments/'));
+});
+
+it('keeps Airtel\'s result code in the failure message of a rejected collection', function () {
+    fakeAirtel(['/merchant/v1/payments/' => Http::response([
+        'status' => ['code' => '200', 'result_code' => 'ESB000014', 'success' => false, 'message' => 'Insufficient funds'],
+    ])]);
+
+    $response = Payment::driver('airtel')->amount(2500)->currency('KES')->phone('0712345678')->reference('AIR4')->charge();
+
+    expect($response->status)->toBe(PaymentStatus::Failed)
+        ->and($response->message)->toBe('[ESB000014] Insufficient funds');
+});
+
+it('does not show a bare HTTP status as if it were a result code', function () {
+    fakeAirtel(['/merchant/v1/payments/' => Http::response([
+        'status' => ['code' => '400', 'success' => false, 'message' => 'Bad request'],
+    ])]);
+
+    $response = Payment::driver('airtel')->amount(2500)->currency('KES')->phone('0712345678')->reference('AIR5')->charge();
+
+    expect($response->message)->toBe('Bad request');
+});
+
+it('puts the error body\'s message into the exception for a failed HTTP response', function () {
+    fakeAirtel(['/merchant/v1/payments/' => Http::response(['error_description' => 'Invalid msisdn'], 400)]);
+
+    try {
+        Payment::driver('airtel')->amount(2500)->currency('KES')->phone('0712345678')->reference('AIR6')->charge();
+        $this->fail('Expected a ProviderApiException');
+    } catch (ProviderApiException $e) {
+        expect($e->getMessage())->toContain('HTTP 400')->toContain('Invalid msisdn');
+    }
 });

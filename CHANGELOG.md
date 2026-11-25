@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New `audit` workflow runs `composer audit` weekly and when `composer.json` changes, against both the newest and the lowest allowed runtime dependencies. Added Dependabot configuration for Composer and GitHub Actions.
 - `SECURITY.md` now states the supported versions correctly.
 
+### Changed
+- **Airtel disbursements now use `/standard/v2/disbursements/`** (previously `/standard/v1/`). The collection, disbursement, enquiry and refund paths live in `AirtelClient::DEFAULT_PATHS`, and the collection and disbursement paths can be overridden with `AIRTEL_COLLECTION_PATH` / `AIRTEL_DISBURSEMENT_PATH` (`drivers.airtel.paths`) for markets that differ. **Upgrade note:** an app that depended on the v1 disbursement path should set `AIRTEL_DISBURSEMENT_PATH=/standard/v1/disbursements/`.
+- Airtel sandbox and production hosts can be overridden with `AIRTEL_SANDBOX_URL` / `AIRTEL_PRODUCTION_URL`.
+- Airtel failures now include Airtel's result code (e.g. `[ESB000014] Insufficient funds`), and a failed HTTP response includes the message from Airtel's error body in the exception text.
+
 ### Removed
 - **Laravel 11 support** (`illuminate/*` is now `^12.73|^13.43`, Testbench 9 dropped from the dev requirements and CI). Laravel 11 stopped receiving security fixes on 12 March 2026, so advisories published since, such as the `TokenGuard` authentication bypass (CVE-2026-114509) and the concurrency task-output injection (CVE-2026-128083), are not fixed on 11.x with the patch levels Paysasa could require. **Upgrade note (breaking for Laravel 11 apps):** upgrade the application to Laravel 12 or 13 before updating Paysasa.
 

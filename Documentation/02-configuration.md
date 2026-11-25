@@ -131,6 +131,11 @@ Daraja callbacks are unsigned, so with `confirm_callbacks` on, an STK **success*
 - **Refunds** use Airtel's own transaction id (the `airtel_money_id`, stored as the payment's `receipt_number`) and Airtel refunds the **full** amount only: a partial refund throws `UnsupportedOperationException` and releases the reservation. A payment with no receipt number cannot be refunded.
 - **Payouts** need `AIRTEL_DISBURSEMENT_PIN` and `AIRTEL_PUBLIC_KEY` (Airtel's RSA public key, PEM or bare base64); the PIN is RSA-encrypted (PKCS#1 v1.5) and base64-encoded before it is sent.
 - Access tokens are cached for Airtel's reported `expires_in` (minus a 60 second margin), and a `401` triggers one token refresh and retry.
+- **API paths and hosts are configurable.** Airtel versions its endpoints per market and product, and client libraries disagree, so the two that vary are settings: `AIRTEL_COLLECTION_PATH` (default `/merchant/v1/payments/`; some markets use `/merchant/v2/payments/`) and `AIRTEL_DISBURSEMENT_PATH` (default `/standard/v2/disbursements/`; v1 was `/standard/v1/disbursements/`). Country-specific hosts can be set with `AIRTEL_SANDBOX_URL` and `AIRTEL_PRODUCTION_URL`. Confirm the paths against your own sandbox before going live; a blank value falls back to the default.
+- **`callback_url` is informational.** Paysasa does not send it with a collection request: Airtel callbacks go to the URL registered for your application in the Airtel developer portal, so register the Paysasa webhook route (or your secret alias) there. `paysasa:doctor` uses the setting only to check that the URL is reachable.
+- **Statuses.** `TS` settles the payment, `TF` fails it, and `TE` is treated as expired; `TIP`, `TI`, `TA` and anything unrecognised stay pending. Airtel's public material does not document `TE`, so that mapping is unconfirmed.
+- **Callback `hash` field.** Some Airtel callbacks carry a `hash`. Its algorithm and key are not documented publicly, so Paysasa does not rely on it; the enquiry confirmation above is what makes a spoofed success callback harmless.
+- **Failures** carry Airtel's result code when it supplies one (for example `[ESB000014] Insufficient funds`), and a failed HTTP response includes the message from Airtel's error body, so the code can be looked up in Airtel's error table.
 
 ### `drivers.stripe`
 
